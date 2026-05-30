@@ -1,0 +1,16 @@
+# Root tooling configuration only — this is NOT an installable package
+# (no [project] table). ruff and pytest read their [tool.*] config from the
+# nearest pyproject at the repo root. The installable package lives in
+# packages/shared/ (see packages/shared/pyproject.toml).
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["packages/shared/src", "services", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests", "packages", "services"]
+asyncio_mode = "auto"

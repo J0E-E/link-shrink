@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkshrink_shared"
+version = "0.1.0"
+description = "Shared LinkShrink package: SQLAlchemy models, short-code logic, validation, config, and Redis cache/queue helpers."
+requires-python = ">=3.12"
+dependencies = [
+    "sqlalchemy[asyncio]>=2.0,<2.1",
+    "asyncpg>=0.29",
+    "pydantic-settings>=2",
+    "redis>=5",
+    "hashids>=1.3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

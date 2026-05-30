@@ -10,11 +10,23 @@ Every epic is sized to a single reviewable commit and leaves `development` worki
 
 ---
 
-## Epic 1 — Repo & tooling scaffold
+## Epic 1 — Repo & tooling scaffold — COMPLETED
 - **Intent:** Stand up the monorepo skeleton so every later epic has a home, shared tooling, and a one-command lint/test entry point.
 - **Scope:** Directory layout from §5.1 (`packages/shared/`, `services/{api,redirect,worker}/`, `frontend/`, `migrations/`, `infra/`); root `pyproject.toml` with ruff + pytest config; `linkshrink_shared` package skeleton (empty modules `models.py`, `shortcode.py`, `validation.py`, `config.py`, `cache.py`, `queue.py` with docstrings); `.env.example` (hashids salt, PG creds, Redis creds, public host); `.gitignore` entries for `.env`; base `README.md`; base Dockerfile(s) for the Python services (a common base image whose layer installs the editable `linkshrink_shared` package, reused by api/redirect/worker images per §9.1).
 - **Verification:** `ruff check` and `pytest` run clean (no tests yet, exit 0); `pip install -e packages/shared` succeeds and `import linkshrink_shared` works; `docker build` of the base Python image succeeds with `linkshrink_shared` importable inside it.
 - **Depends on:** none.
+- **Implementation notes (delivered):**
+  - **Python 3.12**, plain pip + **setuptools** build backend (no uv/poetry), matching the TDD's `pip install -e` flow.
+  - The shared package uses a **src layout** — `packages/shared/src/linkshrink_shared/` (refines the TDD §5.1 flat sketch) — to keep editable installs clean and prevent importing an uninstalled copy. Its modules (`models/shortcode/validation/config/cache/queue.py`, plus `__init__.py` with `__version__`) are docstring-only stubs naming the epic that fills each.
+  - **Shared runtime deps declared now** in `packages/shared/pyproject.toml`: `sqlalchemy[asyncio]>=2.0,<2.1`, `asyncpg>=0.29`, `pydantic-settings>=2`, `redis>=5`, `hashids>=1.3`. Service-specific deps (fastapi, uvicorn, qrcode, user-agents) are deferred to their own epics since `services/*` are empty placeholders (`.gitkeep`).
+  - Root `pyproject.toml` is **tooling-config only** (no `[project]` table): `[tool.ruff]` (target py312, line-length 100, rule set E/F/I/UP/B) and `[tool.pytest.ini_options]` (`asyncio_mode = "auto"`). Dev/tooling deps live in `requirements-dev.txt` (`ruff`, `pytest`, `pytest-asyncio`, `alembic`, `testcontainers[postgres,redis]`).
+  - Added `tests/test_smoke.py` (imports `linkshrink_shared`, asserts `__version__`). **Reason:** `pytest` with zero collected tests exits **5**, not 0 — one trivial import test satisfies both the "pytest exit 0" *and* "`import linkshrink_shared` works" checks. (The "no tests yet" wording is met by a single smoke test.)
+  - Base image lives at `infra/docker/python-base.Dockerfile` (`python:3.12-slim`, `COPY packages/shared` + editable install), built from the repo root: `docker build -f infra/docker/python-base.Dockerfile -t linkshrink-base .`. Epic 18a's api/redirect/worker images build `FROM` it.
+  - Also added `.gitignore` (`.env`, Python/build caches, `node_modules`, `dist/build`), `.env.example` (hashids salt, PG/Redis creds, `PUBLIC_HOST`), and base `README.md` (layout + dev-setup + base-image build). `.gitignore` ignores `.env` exactly, so the tracked `.env.example` is preserved.
+  - **Added in review:** `.dockerignore` and `.gitattributes`.
+    - `.dockerignore` — the base image builds from the repo root, so the whole repo is the build context; this excludes `*.egg-info/`, `__pycache__/`, `.venv/`, `node_modules/`, `.git/`, etc. so host build cruft is neither shipped to the daemon nor copied into the shared editable-install layer.
+    - `.gitattributes` — `* text=auto eol=lf` (plus explicit `*.sh text eol=lf`) so text files commit as LF and never leak CRLF into the Linux service containers, ahead of the shell health-check scripts arriving in Epics 12/18a. **Caveat:** this normalizes on next touch only; run `git add --renormalize .` if a full-tree normalization is ever wanted.
+  - **Verified:** editable install + `import linkshrink_shared` ✓; `ruff check .` exit 0 ✓; `pytest` exit 0 (1 passed) ✓; `docker build` of the base image + in-container `import linkshrink_shared` ✓.
 
 ## Epic 2 — Database models & Alembic migration
 - **Intent:** Define the source-of-truth schema so all services share one set of models.

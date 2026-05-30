@@ -2,6 +2,10 @@
 
 ---
 
+## Epic Plan Implementation Notes
+
+Keep these clean and concise. Bullet points as needed for changes or decisions made. 
+
 ## Frontend HTML IDs
 
 Add a **unique, descriptive `id`** to **every** HTML element in the frontend so that:

@@ -1,0 +1,9 @@
+# Dev / tooling dependencies for the LinkShrink monorepo.
+# Install after the shared package:
+#   pip install -e packages/shared
+#   pip install -r requirements-dev.txt
+ruff
+pytest
+pytest-asyncio
+alembic                          # used from Epic 2 (migrations)
+testcontainers[postgres,redis]   # used from Epic 5/6 (integration tests)

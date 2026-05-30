@@ -1,0 +1,19 @@
+# Secrets / local env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Frontend / build artifacts
+node_modules/
+dist/
+build/
+
+# OS
+.DS_Store

@@ -1,0 +1,7 @@
+# Normalize line endings: text files commit as LF so files used inside the
+# Linux service containers (shell health-check scripts in Epics 12/18a, etc.)
+# never carry CRLF, even when authored on Windows.
+* text=auto eol=lf
+
+# Scripts must always be LF to run in the containers.
+*.sh text eol=lf

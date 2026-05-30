@@ -8,4 +8,23 @@ Modules are filled in by later epics (see each module's docstring); this scaffol
 ships them empty so `import linkshrink_shared` works from Epic 1 onward.
 """
 
+from linkshrink_shared.models import (
+    Base,
+    ClickEvent,
+    DeviceType,
+    Link,
+    Source,
+    link_code_seq,
+)
+
 __version__ = "0.1.0"
+
+__all__ = [
+    "Base",
+    "ClickEvent",
+    "DeviceType",
+    "Link",
+    "Source",
+    "link_code_seq",
+    "__version__",
+]

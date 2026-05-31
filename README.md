@@ -54,6 +54,7 @@ python -m venv .venv
 pip install -e packages/shared
 pip install -e services/api
 pip install -e services/redirect
+pip install -e services/worker
 pip install -r requirements-dev.txt
 
 ruff check .     # lint

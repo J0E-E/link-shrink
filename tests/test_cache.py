@@ -7,6 +7,8 @@ Redis via Testcontainers and skip cleanly when Docker is unavailable (same patte
 
 from __future__ import annotations
 
+import json
+
 import pytest
 import pytest_asyncio
 from redis.asyncio import Redis
@@ -16,10 +18,12 @@ from linkshrink_shared.cache import (
     NEGATIVE_CACHE_TTL_SECONDS,
     POSITIVE_CACHE_MAX_TTL_SECONDS,
     RATE_LIMIT_PER_MINUTE,
+    CachedTarget,
     cache_negative,
     cache_target,
     cap_positive_ttl,
     check_rate_limit,
+    decode_cached_target,
     get_cached,
     hit_window,
     increment_cache_hit,
@@ -49,6 +53,12 @@ def test_is_negative() -> None:
     assert is_negative(NEGATIVE_CACHE_SENTINEL)
     assert not is_negative("https://example.com")
     assert not is_negative(None)
+
+
+def test_decode_cached_target_roundtrip() -> None:
+    encoded = json.dumps({"id": 42, "url": "https://example.com"})
+    assert decode_cached_target(encoded) == CachedTarget(link_id=42, original_url="https://example.com")
+    assert not is_negative(encoded)
 
 
 def test_redirect_key_lowercases_code() -> None:
@@ -92,8 +102,9 @@ async def redis_client(redis_url: str) -> Redis:
 
 
 async def test_set_get_roundtrip(redis_client: Redis) -> None:
-    await cache_target(redis_client, "abc123", "https://example.com", 3600)
-    assert await get_cached(redis_client, "abc123") == "https://example.com"
+    await cache_target(redis_client, "abc123", 42, "https://example.com", 3600)
+    value = await get_cached(redis_client, "abc123")
+    assert decode_cached_target(value) == CachedTarget(link_id=42, original_url="https://example.com")
     assert await redis_client.ttl(redirect_key("abc123")) <= POSITIVE_CACHE_MAX_TTL_SECONDS
 
 

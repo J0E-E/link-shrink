@@ -6,7 +6,7 @@
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["packages/shared/src", "services/api/src", "services", "tests"]
+src = ["packages/shared/src", "services/api/src", "services/redirect/src", "services", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

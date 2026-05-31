@@ -14,6 +14,7 @@ env-tunable settings.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass
 
@@ -35,6 +36,19 @@ POSITIVE_CACHE_MAX_TTL_SECONDS = 86400
 
 #: How long a negative (404) entry lives (§6 #13).
 NEGATIVE_CACHE_TTL_SECONDS = 60
+
+
+@dataclass(frozen=True)
+class CachedTarget:
+    """A decoded positive redirect cache entry: the link's id and its target URL.
+
+    Carrying ``link_id`` in the cache value lets a warm cache hit build a click event
+    (which needs ``link_id``, see :class:`linkshrink_shared.queue.ClickPayload`) without
+    a Postgres round-trip on the hot path (§5.6).
+    """
+
+    link_id: int
+    original_url: str
 
 
 def redirect_key(code: str) -> str:
@@ -60,12 +74,16 @@ async def get_cached(redis: Redis, code: str) -> str | None:
 
 
 async def cache_target(
-    redis: Redis, code: str, original_url: str, seconds_until_expires_at: int
+    redis: Redis, code: str, link_id: int, original_url: str, seconds_until_expires_at: int
 ) -> None:
-    """Positively cache ``code → original_url`` with TTL capped at the link's lifetime."""
-    await redis.set(
-        redirect_key(code), original_url, ex=cap_positive_ttl(seconds_until_expires_at)
-    )
+    """Positively cache ``code → {link_id, original_url}`` with TTL capped at the link's lifetime.
+
+    The value is JSON ``{"id": link_id, "url": original_url}`` so a later cache hit has the
+    ``link_id`` needed to build a click event without touching Postgres. The negative
+    sentinel stays a plain string, so :func:`is_negative` can still tell the two apart.
+    """
+    payload = json.dumps({"id": link_id, "url": original_url})
+    await redis.set(redirect_key(code), payload, ex=cap_positive_ttl(seconds_until_expires_at))
 
 
 async def cache_negative(redis: Redis, code: str) -> None:
@@ -76,6 +94,16 @@ async def cache_negative(redis: Redis, code: str) -> None:
 def is_negative(value: str | None) -> bool:
     """True if a cached value is the negative (404) sentinel."""
     return value == NEGATIVE_CACHE_SENTINEL
+
+
+def decode_cached_target(value: str) -> CachedTarget:
+    """Parse a positive cache value into a :class:`CachedTarget`.
+
+    The caller must have already ruled out a miss (``None``) and a negative hit (see
+    :func:`is_negative`); this only decodes the JSON written by :func:`cache_target`.
+    """
+    data = json.loads(value)
+    return CachedTarget(link_id=int(data["id"]), original_url=data["url"])
 
 
 # --- Creation rate limiting (§5.9) -------------------------------------------------

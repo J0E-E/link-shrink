@@ -52,6 +52,8 @@ python -m venv .venv
 # macOS/Linux:          source .venv/bin/activate
 
 pip install -e packages/shared
+pip install -e services/api
+pip install -e services/redirect
 pip install -r requirements-dev.txt
 
 ruff check .     # lint

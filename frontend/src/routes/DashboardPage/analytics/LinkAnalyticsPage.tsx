@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import type { LinkAnalyticsResponse } from "../../../api/types";
+import Annotation from "../../../components/Annotation/Annotation";
 import QrPanel from "../../../components/QrPanel/QrPanel";
 import AnalyticsHeader from "./AnalyticsHeader";
 import BreakdownChart from "./BreakdownChart";
@@ -90,6 +91,13 @@ export default function LinkAnalyticsPage() {
           </div>
 
           <DailyClicksChart daily={analytics.daily} />
+
+          <Annotation id="annotation-analytics-bucketing" title="UTC daily bucketing" headingLevel={2}>
+            Clicks are grouped into daily buckets by truncating their timestamp to a UTC calendar
+            day in PostgreSQL, independent of the database session&apos;s timezone. The API returns a
+            sparse series (only days with clicks); the chart fills the gaps so the timeline stays
+            continuous.
+          </Annotation>
 
           <div className={styles.breakdowns} id="analytics-breakdowns">
             {BREAKDOWNS.map((breakdown) => (

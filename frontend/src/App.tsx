@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
+import EducationalModeProvider from "./education/EducationalModeProvider";
 import AppShell from "./components/layout/AppShell/AppShell";
 import HomePage from "./routes/HomePage/HomePage";
 import DashboardPage from "./routes/DashboardPage/DashboardPage";
@@ -17,26 +18,28 @@ const LinkAnalyticsPage = lazy(() => import("./routes/DashboardPage/analytics/Li
  */
 export default function App() {
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route
-          path="/dashboard/:code"
-          element={
-            <Suspense
-              fallback={
-                <p id="analytics-route-loading" role="status">
-                  Loading analytics…
-                </p>
-              }
-            >
-              <LinkAnalyticsPage />
-            </Suspense>
-          }
-        />
-        <Route path="/how-it-works" element={<HowItWorksPage />} />
-      </Route>
-    </Routes>
+    <EducationalModeProvider>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route
+            path="/dashboard/:code"
+            element={
+              <Suspense
+                fallback={
+                  <p id="analytics-route-loading" role="status">
+                    Loading analytics…
+                  </p>
+                }
+              >
+                <LinkAnalyticsPage />
+              </Suspense>
+            }
+          />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
+        </Route>
+      </Routes>
+    </EducationalModeProvider>
   );
 }

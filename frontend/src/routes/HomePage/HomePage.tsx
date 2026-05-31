@@ -1,3 +1,4 @@
+import Annotation from "../../components/Annotation/Annotation";
 import VisibilityNotice from "../../components/VisibilityNotice/VisibilityNotice";
 import ShortenForm from "./ShortenForm";
 import styles from "./HomePage.module.css";
@@ -20,6 +21,15 @@ export default function HomePage() {
         <ShortenForm />
       </section>
       <VisibilityNotice />
+      <Annotation id="annotation-home-rate-limiting" title="Rate limiting" headingLevel={2}>
+        Creating links is rate-limited per IP — 10 per minute and 100 per day — using fixed-window
+        counters in Redis. Browsing the dashboard and following short links are never throttled.
+      </Annotation>
+      <Annotation id="annotation-home-validation" title="URL validation &amp; SSRF guard" headingLevel={2}>
+        Before a link is created the destination is checked: only http and https, at most 2048
+        characters, and the host is resolved and rejected if it points at a private, loopback, or
+        link-local address — so the shortener can&apos;t be used to probe internal services.
+      </Annotation>
     </div>
   );
 }

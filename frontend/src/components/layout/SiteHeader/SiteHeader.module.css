@@ -14,8 +14,7 @@
   padding: var(--space-3) var(--layout-gutter);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -23,6 +22,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  /* Keeps the brand pinned left while the toggle + nav cluster on the right, for any
+     number of header controls. */
+  margin-right: auto;
   color: var(--color-text);
   font-size: var(--font-size-large);
   font-weight: 600;

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 
+import Annotation from "../../components/Annotation/Annotation";
 import LinkList from "./LinkList";
 import { useLinkList } from "./useLinkList";
 import styles from "./DashboardPage.module.css";
@@ -22,6 +23,12 @@ export default function DashboardPage() {
           Every shortened link, newest first. Open one to see its analytics.
         </p>
       </header>
+
+      <Annotation id="annotation-dashboard-pagination" title="Keyset pagination" headingLevel={2}>
+        This feed pages with a keyset cursor, not an offset — each “Load more” carries the
+        created-at and id of the last row and asks for everything after it. That stays fast no
+        matter how deep you page, and never skips or repeats a row when new links appear mid-scroll.
+      </Annotation>
 
       {status === "loading" && (
         <p className={styles.notice} id="dashboard-loading" role="status">

@@ -66,6 +66,14 @@ def invalid_cursor_error() -> HTTPException:
     )
 
 
+def invalid_qr_format_error(value: str) -> HTTPException:
+    """An unsupported QR ``format`` (anything but ``png``/``svg``) → 400."""
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_detail("invalid_format", f"unsupported qr format {value!r}; use png or svg"),
+    )
+
+
 def link_not_found_error(code: str) -> HTTPException:
     """No link exists for the requested short code → 404."""
     return HTTPException(

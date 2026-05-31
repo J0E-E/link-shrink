@@ -16,6 +16,7 @@ malformed cursor → 400, and link detail 200/404.
 from __future__ import annotations
 
 import base64
+import struct
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -33,6 +34,8 @@ from linkshrink_api.dependencies import (
     get_settings_dependency,
 )
 from linkshrink_api.main import create_app
+from linkshrink_api.qr import QR_CACHE_CONTROL
+from linkshrink_api.urls import build_qr_payload
 from linkshrink_shared import (
     RATE_LIMIT_PER_DAY,
     ClickEvent,
@@ -628,3 +631,63 @@ async def test_analytics_enum_breakdown_tiebreak_is_alphabetical(
         {"value": "desktop", "count": 1},
         {"value": "mobile", "count": 1},
     ]
+
+
+# --- Epic 9: on-demand QR generation -----------------------------------------------
+
+
+def _png_width(body: bytes) -> int:
+    """Read the pixel width out of a PNG's IHDR chunk (no Pillow needed)."""
+    # 8-byte signature, 4-byte chunk length, 4-byte "IHDR", then width as a big-endian uint32.
+    return struct.unpack(">I", body[16:20])[0]
+
+
+async def test_qr_default_returns_png_near_512px(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await client.get(f"/api/links/{code}/qr")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.headers["cache-control"] == QR_CACHE_CONTROL
+    assert response.content[:8] == b"\x89PNG\r\n\x1a\n"
+    assert abs(_png_width(response.content) - 512) <= 100
+
+
+async def test_qr_svg_format_returns_svg(client: AsyncClient, session_factory) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await client.get(f"/api/links/{code}/qr", params={"format": "svg"})
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/svg+xml"
+    assert "<svg" in response.text
+
+
+async def test_qr_is_case_insensitive(client: AsyncClient, session_factory) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await client.get(f"/api/links/{code.upper()}/qr")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+
+
+def test_qr_payload_carries_source_attribution() -> None:
+    # segno is encode-only, so we verify the ?source=qr attribution at the construction
+    # seam: the endpoint feeds exactly this payload to the QR renderer.
+    assert (
+        build_qr_payload(PUBLIC_HOST, "abc123")
+        == f"https://{PUBLIC_HOST}/abc123?source=qr"
+    )
+
+
+async def test_qr_unknown_code_returns_404(client: AsyncClient) -> None:
+    response = await client.get("/api/links/does-not-exist/qr")
+    assert response.status_code == 404
+    assert response.json()["detail"]["reason"] == "not_found"
+
+
+async def test_qr_invalid_format_returns_400(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await client.get(f"/api/links/{code}/qr", params={"format": "gif"})
+    assert response.status_code == 400
+    assert response.json()["detail"]["reason"] == "invalid_format"

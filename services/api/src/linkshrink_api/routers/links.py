@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query, Response
 from redis.asyncio import Redis
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,6 +31,7 @@ from linkshrink_api.errors import (
     alias_taken_error,
     alias_validation_error,
     invalid_cursor_error,
+    invalid_qr_format_error,
     link_not_found_error,
     rate_limited_error,
     short_code_exhausted_error,
@@ -38,6 +39,7 @@ from linkshrink_api.errors import (
 )
 from linkshrink_api.pagination import decode_cursor, encode_cursor
 from linkshrink_api.persistence import try_insert_link
+from linkshrink_api.qr import QR_CACHE_CONTROL, QR_MEDIA_TYPES, render_qr
 from linkshrink_api.schemas import (
     BreakdownItem,
     CreateLinkRequest,
@@ -49,7 +51,7 @@ from linkshrink_api.schemas import (
     clamp_limit,
     clamp_ttl,
 )
-from linkshrink_api.urls import build_qr_url, build_short_url
+from linkshrink_api.urls import build_qr_payload, build_qr_url, build_short_url
 from linkshrink_shared import (
     HostResolver,
     Link,
@@ -222,6 +224,38 @@ async def get_link_analytics(
 def _to_breakdown(rows: list[tuple[str, int]]) -> list[BreakdownItem]:
     """Map ``(value, count)`` aggregate rows to the wire breakdown items."""
     return [BreakdownItem(value=value, count=count) for value, count in rows]
+
+
+@router.get("/api/links/{code}/qr")
+async def get_link_qr(
+    code: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings_dependency)],
+    image_format: Annotated[str, Query(alias="format")] = "png",
+) -> Response:
+    """On-demand QR image for a short link → 200, or 404 if no such code (§5.8).
+
+    Defaults to PNG (~512px, ECC=M); ``?format=svg`` returns SVG. The image is rendered
+    per request (never stored) and encodes the short URL tagged with ``?source=qr`` so a
+    scan is attributed to the QR source. Like the detail/analytics reads, an expired link
+    is still served — only an unknown code is a 404; the redirect path owns expiry (§5.6).
+    """
+    image_format = image_format.lower()
+    if image_format not in QR_MEDIA_TYPES:
+        raise invalid_qr_format_error(image_format)
+
+    query = select(Link).where(func.lower(Link.short_code) == code.lower())
+    link = await session.scalar(query)
+    if link is None:
+        raise link_not_found_error(code)
+
+    payload = build_qr_payload(settings.public_host, link.short_code)
+    image_bytes, media_type = render_qr(payload, image_format)
+    return Response(
+        content=image_bytes,
+        media_type=media_type,
+        headers={"Cache-Control": QR_CACHE_CONTROL},
+    )
 
 
 async def _create_with_alias(

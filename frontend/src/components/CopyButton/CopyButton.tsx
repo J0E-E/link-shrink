@@ -5,14 +5,17 @@ import styles from "./CopyButton.module.css";
 interface CopyButtonProps {
   /** The text to copy (the short URL). */
   value: string;
+  /** Element id stem, so the button stays unique on whichever page renders it. */
+  elementId?: string;
 }
 
 /**
  * Copies the short URL to the clipboard and flips to a green "Copied!" state for a couple
  * of seconds. Falls back to a hidden textarea + `document.execCommand` when the async
- * Clipboard API is unavailable (older browsers or non-secure contexts).
+ * Clipboard API is unavailable (older browsers or non-secure contexts). Shared by the Home
+ * result card and the per-link analytics header.
  */
-export default function CopyButton({ value }: CopyButtonProps) {
+export default function CopyButton({ value, elementId = "result-copy-button" }: CopyButtonProps) {
   const [didCopy, setDidCopy] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -45,14 +48,14 @@ export default function CopyButton({ value }: CopyButtonProps) {
     <button
       type="button"
       className={didCopy ? `${styles.button} ${styles.copied}` : styles.button}
-      id="result-copy-button"
+      id={elementId}
       aria-live="polite"
       onClick={copyValue}
     >
-      <span className={styles.icon} id="result-copy-button-icon" aria-hidden="true">
+      <span className={styles.icon} id={`${elementId}-icon`} aria-hidden="true">
         {didCopy ? "✓" : "⧉"}
       </span>
-      <span className={styles.label} id="result-copy-button-label">
+      <span className={styles.label} id={`${elementId}-label`}>
         {didCopy ? "Copied!" : "Copy"}
       </span>
     </button>

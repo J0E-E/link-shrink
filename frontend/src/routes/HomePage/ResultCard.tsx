@@ -1,26 +1,12 @@
 import type { CreateLinkResponse } from "../../api/types";
-import CopyButton from "./CopyButton";
-import QrPanel from "./QrPanel";
+import CopyButton from "../../components/CopyButton/CopyButton";
+import QrPanel from "../../components/QrPanel/QrPanel";
+import { formatDateTime } from "../../utils/datetime";
 import styles from "./ResultCard.module.css";
 
 interface ResultCardProps {
   result: CreateLinkResponse;
   onReset: () => void;
-}
-
-/** Format an ISO timestamp as a readable local date and time, e.g. "30 Jun 2026, 14:30". */
-function formatExpiry(isoTimestamp: string): string {
-  const expiryDate = new Date(isoTimestamp);
-  if (Number.isNaN(expiryDate.getTime())) {
-    return isoTimestamp;
-  }
-  return expiryDate.toLocaleString(undefined, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 }
 
 /**
@@ -58,7 +44,7 @@ export default function ResultCard({ result, onReset }: ResultCardProps) {
           Expires
         </dt>
         <dd className={styles.detailValue} id="result-expiry-value">
-          {formatExpiry(result.expires_at)}
+          {formatDateTime(result.expires_at)}
         </dd>
       </dl>
 

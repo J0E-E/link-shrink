@@ -9,6 +9,7 @@ interface QrPanelProps {
 /**
  * Shows the link's QR code as a preview and offers PNG and SVG downloads. The QR endpoint
  * is same-origin, so the `download` attribute saves the file instead of navigating to it.
+ * Shared by the Home result card and the per-link analytics view.
  */
 export default function QrPanel({ shortCode }: QrPanelProps) {
   const previewUrl = buildQrUrl(shortCode, "png");

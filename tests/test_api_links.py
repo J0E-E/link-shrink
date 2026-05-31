@@ -1,4 +1,4 @@
-"""Epic 6 — integration tests for ``POST /api/links`` against real PG + Redis.
+"""Epic 6/7 — integration tests for the ``/api/links`` endpoints against real PG + Redis.
 
 Spins up throwaway Postgres and Redis via Testcontainers, applies the Alembic
 migration, and drives the FastAPI app through an in-process ASGI transport with the
@@ -6,19 +6,22 @@ dependencies overridden to point at the containers (and a fake DNS resolver, so 
 real network is touched). If Docker is unavailable the whole module skips, matching
 the clean-run expectation from Epics 2/5.
 
-Covers the epic's acceptance criteria: 201 shape, 400 (bad URL/scheme/length/
-private-IP/bad alias), 409 (reserved + taken alias), 429 with ``Retry-After`` (minute
-and day windows), and ``ttl_seconds`` clamping at both bounds.
+Covers the create ACs (Epic 6): 201 shape, 400 (bad URL/scheme/length/private-IP/bad
+alias), 409 (reserved + taken alias), 429 with ``Retry-After`` (minute and day
+windows), and ``ttl_seconds`` clamping at both bounds; and the read ACs (Epic 7):
+newest-first listing, cursor paging stable under inserts, ``limit`` clamp at 100,
+malformed cursor → 400, and link detail 200/404.
 """
 
 from __future__ import annotations
 
-from datetime import datetime
+import base64
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
+from httpx import ASGITransport, AsyncClient, Response
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -29,7 +32,7 @@ from linkshrink_api.dependencies import (
     get_settings_dependency,
 )
 from linkshrink_api.main import create_app
-from linkshrink_shared import RATE_LIMIT_PER_DAY, Settings, ratelimit_day_key
+from linkshrink_shared import RATE_LIMIT_PER_DAY, Link, Settings, ratelimit_day_key
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -289,3 +292,156 @@ def _lifetime_seconds(data: dict) -> int:
     created_at = datetime.fromisoformat(data["created_at"])
     expires_at = datetime.fromisoformat(data["expires_at"])
     return round((expires_at - created_at).total_seconds())
+
+
+# --- Epic 7: read endpoints (listing + detail) -------------------------------------
+
+#: A fixed base time so seeded ``created_at`` values (and thus ordering) are
+#: deterministic. Link ``i`` is created at ``base + i seconds``, so higher ``i`` = newer.
+_SEED_BASE_TIME = datetime(2026, 1, 1, tzinfo=UTC)
+
+LINK_VIEW_FIELDS = {
+    "short_code",
+    "short_url",
+    "original_url",
+    "created_at",
+    "expires_at",
+    "qr_url",
+    "is_custom",
+}
+
+
+async def _seed_links(
+    session_factory, count: int, *, is_custom: bool = False, start: int = 0
+) -> list[str]:
+    """Insert ``count`` links straight into the DB and return their codes oldest→newest.
+
+    Seeding via the ORM (not the API) deliberately departs from the create tests: it
+    sidesteps the 10/min create rate limit when more than ten rows are needed and lets
+    each ``created_at`` be pinned so newest-first ordering is exact and repeatable.
+    """
+    codes = []
+    async with session_factory() as session:
+        for offset in range(count):
+            index = start + offset
+            created_at = _SEED_BASE_TIME + timedelta(seconds=index)
+            code = f"seed-{index:04d}"
+            session.add(
+                Link(
+                    short_code=code,
+                    original_url=f"https://example.com/{index}",
+                    is_custom=is_custom,
+                    created_at=created_at,
+                    expires_at=created_at + timedelta(days=30),
+                )
+            )
+            codes.append(code)
+        await session.commit()
+    return codes
+
+
+async def _list(client: AsyncClient, **params) -> Response:
+    """GET /api/links with optional cursor/limit query params."""
+    return await client.get("/api/links", params=params)
+
+
+async def test_list_returns_newest_first_with_expected_shape(
+    client: AsyncClient, session_factory
+) -> None:
+    codes = await _seed_links(session_factory, 3)  # seed-0000 (oldest) .. seed-0002 (newest)
+    response = await _list(client)
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == {"items", "next_cursor"}
+    assert data["next_cursor"] is None  # all three fit on one page
+    returned = [item["short_code"] for item in data["items"]]
+    assert returned == list(reversed(codes))  # newest first
+    assert set(data["items"][0]) == LINK_VIEW_FIELDS
+
+
+async def test_list_defaults_to_twenty_per_page(
+    client: AsyncClient, session_factory
+) -> None:
+    await _seed_links(session_factory, 25)
+    data = (await _list(client)).json()
+    assert len(data["items"]) == 20
+    assert data["next_cursor"] is not None
+
+
+async def test_list_limit_clamped_to_one_hundred(
+    client: AsyncClient, session_factory
+) -> None:
+    await _seed_links(session_factory, 101)
+    data = (await _list(client, limit=500)).json()
+    assert len(data["items"]) == 100  # clamped despite asking for 500
+    assert data["next_cursor"] is not None  # the 101st row is on the next page
+
+
+async def test_cursor_paging_is_stable_under_inserts(
+    client: AsyncClient, session_factory
+) -> None:
+    codes = await _seed_links(session_factory, 5)  # seed-0000 .. seed-0004 (newest)
+
+    first = (await _list(client, limit=2)).json()
+    assert [item["short_code"] for item in first["items"]] == ["seed-0004", "seed-0003"]
+    assert first["next_cursor"] is not None
+
+    # A newer link arrives between page requests; it sorts above the held cursor and
+    # must not shift or duplicate the in-progress paging.
+    await _seed_links(session_factory, 1, start=99)  # seed-0099 is the newest row now
+
+    second = (await _list(client, limit=2, cursor=first["next_cursor"])).json()
+    assert [item["short_code"] for item in second["items"]] == ["seed-0002", "seed-0001"]
+    assert second["next_cursor"] is not None
+
+    third = (await _list(client, limit=2, cursor=second["next_cursor"])).json()
+    assert [item["short_code"] for item in third["items"]] == ["seed-0000"]
+    assert third["next_cursor"] is None  # last page
+
+    seen = [item["short_code"] for page in (first, second, third) for item in page["items"]]
+    assert seen == codes[::-1]  # every original row once, newest→oldest, no dupes/gaps
+    assert "seed-0099" not in seen  # the mid-paging insert never leaked into the run
+
+
+async def test_malformed_cursor_returns_400(client: AsyncClient) -> None:
+    response = await _list(client, cursor="not-a-valid-cursor!!!")
+    assert response.status_code == 400
+    assert response.json()["detail"]["reason"] == "invalid_cursor"
+
+
+async def test_cursor_with_naive_timestamp_returns_400(client: AsyncClient) -> None:
+    # A crafted-but-decodable cursor whose timestamp lacks a timezone must be rejected
+    # rather than slipping a naive datetime into the timestamptz comparison.
+    naive_cursor = base64.urlsafe_b64encode(b"2026-01-01T00:00:00|5").decode("ascii")
+    response = await _list(client, cursor=naive_cursor)
+    assert response.status_code == 400
+    assert response.json()["detail"]["reason"] == "invalid_cursor"
+
+
+async def test_get_link_detail_returns_200_with_shape(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1, is_custom=True)
+    response = await client.get(f"/api/links/{code}")
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == LINK_VIEW_FIELDS
+    assert data["short_code"] == code
+    assert data["is_custom"] is True
+    assert data["short_url"] == f"https://{PUBLIC_HOST}/{code}"
+    assert data["qr_url"] == f"https://{PUBLIC_HOST}/api/links/{code}/qr"
+
+
+async def test_get_link_detail_is_case_insensitive(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await client.get(f"/api/links/{code.upper()}")
+    assert response.status_code == 200
+    assert response.json()["short_code"] == code
+
+
+async def test_get_unknown_code_returns_404(client: AsyncClient) -> None:
+    response = await client.get("/api/links/does-not-exist")
+    assert response.status_code == 404
+    assert response.json()["detail"]["reason"] == "not_found"

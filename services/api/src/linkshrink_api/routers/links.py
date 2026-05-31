@@ -16,6 +16,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from redis.asyncio import Redis
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from linkshrink_api.dependencies import (
@@ -28,12 +29,22 @@ from linkshrink_api.dependencies import (
 from linkshrink_api.errors import (
     alias_taken_error,
     alias_validation_error,
+    invalid_cursor_error,
+    link_not_found_error,
     rate_limited_error,
     short_code_exhausted_error,
     url_validation_error,
 )
+from linkshrink_api.pagination import decode_cursor, encode_cursor
 from linkshrink_api.persistence import try_insert_link
-from linkshrink_api.schemas import CreateLinkRequest, CreateLinkResponse, clamp_ttl
+from linkshrink_api.schemas import (
+    CreateLinkRequest,
+    CreateLinkResponse,
+    LinkView,
+    ListLinksResponse,
+    clamp_limit,
+    clamp_ttl,
+)
 from linkshrink_api.urls import build_qr_url, build_short_url
 from linkshrink_shared import (
     HostResolver,
@@ -105,6 +116,75 @@ async def create_link(
         expires_at=expires_at,
         qr_url=build_qr_url(settings.public_host, short_code),
     )
+
+
+def _link_to_view(link: Link, public_host: str) -> LinkView:
+    """Build the public read view of a link, shared by listing and detail."""
+    return LinkView(
+        short_code=link.short_code,
+        short_url=build_short_url(public_host, link.short_code),
+        original_url=link.original_url,
+        created_at=link.created_at,
+        expires_at=link.expires_at,
+        qr_url=build_qr_url(public_host, link.short_code),
+        is_custom=link.is_custom,
+    )
+
+
+@router.get("/api/links", response_model=ListLinksResponse)
+async def list_links(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings_dependency)],
+    cursor: str | None = None,
+    limit: int | None = None,
+) -> ListLinksResponse:
+    """Keyset-paginated, newest-first feed of links (§5.8).
+
+    Pages over the ``(created_at DESC, id DESC)`` index: an opaque ``cursor`` carries
+    the last row's ``(created_at, id)``, and one extra row beyond ``limit`` is fetched
+    to tell whether a next page exists. Expired links are included (this is the
+    management view, not the redirect hot path).
+    """
+    page_size = clamp_limit(limit)
+
+    query = select(Link).order_by(Link.created_at.desc(), Link.id.desc())
+    if cursor is not None:
+        try:
+            cursor_created_at, cursor_id = decode_cursor(cursor)
+        except ValueError as error:
+            raise invalid_cursor_error() from error
+        query = query.where(
+            tuple_(Link.created_at, Link.id) < tuple_(cursor_created_at, cursor_id)
+        )
+
+    # Fetch one extra row so we can tell if there is a following page without a count.
+    rows = (await session.scalars(query.limit(page_size + 1))).all()
+    has_next_page = len(rows) > page_size
+    page = rows[:page_size]
+
+    next_cursor = None
+    if has_next_page:
+        last = page[-1]
+        next_cursor = encode_cursor(last.created_at, last.id)
+
+    return ListLinksResponse(
+        items=[_link_to_view(link, settings.public_host) for link in page],
+        next_cursor=next_cursor,
+    )
+
+
+@router.get("/api/links/{code}", response_model=LinkView)
+async def get_link(
+    code: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    settings: Annotated[Settings, Depends(get_settings_dependency)],
+) -> LinkView:
+    """Single-link detail by short code → 200, or 404 if no such code (§5.8)."""
+    query = select(Link).where(func.lower(Link.short_code) == code.lower())
+    link = await session.scalar(query)
+    if link is None:
+        raise link_not_found_error(code)
+    return _link_to_view(link, settings.public_host)
 
 
 async def _create_with_alias(

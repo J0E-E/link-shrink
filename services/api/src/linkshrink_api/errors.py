@@ -58,6 +58,22 @@ def short_code_exhausted_error() -> HTTPException:
     )
 
 
+def invalid_cursor_error() -> HTTPException:
+    """A malformed/undecodable pagination cursor → 400."""
+    return HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=_detail("invalid_cursor", "the pagination cursor is malformed"),
+    )
+
+
+def link_not_found_error(code: str) -> HTTPException:
+    """No link exists for the requested short code → 404."""
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=_detail("not_found", f"no link found for code {code!r}"),
+    )
+
+
 def rate_limited_error(retry_after_seconds: int | None) -> HTTPException:
     """Creation rate limit exceeded → 429 with a ``Retry-After`` header (§5.9)."""
     headers = {}

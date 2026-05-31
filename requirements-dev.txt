@@ -7,3 +7,4 @@ pytest
 pytest-asyncio
 alembic                          # used from Epic 2 (migrations)
 testcontainers[postgres,redis]   # used from Epic 5/6 (integration tests)
+httpx                            # used from Epic 6 (async API test client)

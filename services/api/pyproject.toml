@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "linkshrink_api"
+version = "0.1.0"
+description = "LinkShrink API service: link creation, dashboard, analytics, QR, and metrics (FastAPI)."
+requires-python = ">=3.12"
+dependencies = [
+    "linkshrink_shared",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

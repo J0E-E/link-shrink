@@ -1,0 +1,171 @@
+# LinkShrink — Compose core (Epic 18a).
+#
+# Brings up the backend half of the stack: Postgres, Redis, a one-shot migration
+# step, and the three Python services (api, redirect, worker). The public Nginx
+# proxy, TLS, and the static frontend are added in Epic 18b.
+#
+# Bring-up (from the repo root):
+#   make up          # builds the base image first, then this stack
+#   infra/up.ps1     # Windows equivalent
+# All commands target this file via `-f infra/docker-compose.yml`.
+#
+# Service Dockerfiles `FROM linkshrink-base`, so that image must be built first
+# (the Makefile / up.ps1 do this). Build context is the repo root (`..`) so the
+# COPY paths in the Dockerfiles resolve.
+
+name: linkshrink
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    # Postgres reads POSTGRES_USER/PASSWORD/DB from the env to provision the
+    # role/database; the repo-root .env supplies them (same file the services use).
+    env_file:
+      - ../.env
+    # Published to the host for local debugging (psql / GUI tools), bound to
+    # loopback only so the database is never exposed on the LAN. The app services
+    # below are NOT published — they are reachable only on the network.
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - linkshrink
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    # AOF persistence so the analytics stream / counters survive a restart.
+    command: ["redis-server", "--appendonly", "yes"]
+    # Published to the host for local debugging (redis-cli), bound to loopback
+    # only — Redis has no password in local dev, so it must never be reachable off
+    # this host. App services stay internal.
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - linkshrink
+
+  # One-shot schema migration. Runs `alembic upgrade head` and exits 0; the app
+  # services wait on its successful completion, so nothing serves before the
+  # schema exists.
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/docker/migrate.Dockerfile
+    image: linkshrink-migrate
+    restart: "no"
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - linkshrink
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/docker/api.Dockerfile
+    image: linkshrink-api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # No `ports:` — internal-only, reachable only through the proxy (Epic 18b).
+    # slim base has no curl, so probe /health with a dependency-free python call.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health', timeout=3).getcode()==200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linkshrink
+
+  redirect:
+    build:
+      context: ..
+      dockerfile: infra/docker/redirect.Dockerfile
+    image: linkshrink-redirect
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # No `ports:` — internal-only, reachable only through the proxy (Epic 18b).
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health', timeout=3).getcode()==200 else 1)
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linkshrink
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/docker/worker.Dockerfile
+    image: linkshrink-worker
+    restart: unless-stopped
+    # WORKER_NUMBER (names this instance's consumer in the analytics group) comes
+    # from the repo-root .env, so a second worker can be numbered without editing
+    # this file. Defaults to 1 in linkshrink_worker.config if unset.
+    env_file:
+      - ../.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # No HTTP surface — liveness is the heartbeat in Redis (≤ 15 s, §5.2).
+    healthcheck:
+      test: ["CMD", "python", "-m", "linkshrink_worker.healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - linkshrink
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  linkshrink:
+    driver: bridge

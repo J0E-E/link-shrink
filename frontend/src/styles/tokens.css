@@ -1,0 +1,52 @@
+/*
+ * Design tokens — the single source of truth for the LinkShrink visual system.
+ * Values come straight from the UI/UX Design Guide (dark-only theme). Components
+ * reference these custom properties via their CSS Modules rather than hard-coding
+ * colours or sizes, so a palette change happens in one place.
+ */
+
+:root {
+  /* Colour palette (dark mode only) */
+  --color-background: #0f1117;
+  --color-surface: #1e2230;
+  --color-surface-raised: #262b3b;
+  --color-border: #2e3445;
+  --color-text: #ffffff;
+  --color-text-secondary: #b4bac8;
+  --color-accent: #a855f7;
+  --color-accent-strong: #9333ea;
+  --color-success: #22c55e;
+  --color-warning: #f5b54a;
+
+  /* Typography */
+  --font-family-base: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-size-small: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-large: 1.25rem;
+  --font-size-heading: 2rem;
+  --font-size-display: 2.75rem;
+  --line-height-base: 1.6;
+
+  /* Spacing scale */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+
+  /* Radius */
+  --radius-small: 6px;
+  --radius-medium: 10px;
+  --radius-large: 16px;
+
+  /* Layout */
+  --layout-max-width: 1200px;
+  --layout-gutter: var(--space-5);
+
+  /* Effects */
+  --shadow-card: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --focus-ring: 0 0 0 3px rgba(168, 85, 247, 0.45);
+  --transition-base: 150ms ease;
+}

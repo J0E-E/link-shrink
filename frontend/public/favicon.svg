@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" id="favicon-svg">
+  <rect width="32" height="32" rx="7" fill="#0F1117" id="favicon-background" />
+  <path
+    id="favicon-link-top"
+    d="M13 19.5a3.5 3.5 0 0 1 0-5l2-2a3.5 3.5 0 0 1 5 5l-1 1"
+    fill="none"
+    stroke="#A855F7"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+  <path
+    id="favicon-link-bottom"
+    d="M19 12.5a3.5 3.5 0 0 1 0 5l-2 2a3.5 3.5 0 0 1-5-5l1-1"
+    fill="none"
+    stroke="#22C55E"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+</svg>

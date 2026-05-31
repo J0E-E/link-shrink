@@ -1,0 +1,59 @@
+.nav {
+  display: flex;
+}
+
+.navList {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.navListItem {
+  display: block;
+}
+
+.navLink {
+  display: inline-block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-small);
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  transition: color var(--transition-base), background-color var(--transition-base);
+}
+
+.navLink:hover {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  text-decoration: none;
+}
+
+.navLinkActive {
+  color: var(--color-text);
+  background-color: var(--color-surface);
+}
+
+/* Mobile: the nav collapses behind the toggle and stacks vertically when opened. */
+@media (max-width: 640px) {
+  .nav {
+    display: none;
+    flex-basis: 100%;
+  }
+
+  .navOpen {
+    display: flex;
+  }
+
+  .navList {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    gap: var(--space-1);
+    padding-top: var(--space-3);
+  }
+
+  .navLink {
+    width: 100%;
+  }
+}

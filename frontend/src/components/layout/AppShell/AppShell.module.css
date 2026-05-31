@@ -1,0 +1,17 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  padding: var(--space-6) var(--layout-gutter);
+}
+
+.mainInner {
+  width: 100%;
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+}

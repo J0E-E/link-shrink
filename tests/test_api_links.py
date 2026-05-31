@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import struct
+import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -37,13 +38,23 @@ from linkshrink_api.main import create_app
 from linkshrink_api.qr import QR_CACHE_CONTROL
 from linkshrink_api.urls import build_qr_payload
 from linkshrink_shared import (
+    METRICS_CACHE_HIT_KEY,
+    METRICS_CACHE_MISS_KEY,
+    METRICS_REDIRECTS_TOTAL_KEY,
     RATE_LIMIT_PER_DAY,
+    WORKER_HEARTBEAT_STALE_SECONDS,
     ClickEvent,
+    ClickPayload,
     DeviceType,
     Link,
     Settings,
     Source,
+    add_click,
+    ensure_consumer_group,
     ratelimit_day_key,
+    read_clicks,
+    worker_consumer_name,
+    write_heartbeat,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -691,3 +702,95 @@ async def test_qr_invalid_format_returns_400(
     response = await client.get(f"/api/links/{code}/qr", params={"format": "gif"})
     assert response.status_code == 400
     assert response.json()["detail"]["reason"] == "invalid_format"
+
+
+# --- Epic 10: metrics + health ----------------------------------------------------
+
+_METRICS_FIELDS = {
+    "cache_hits",
+    "cache_misses",
+    "cache_hit_ratio",
+    "total_redirects",
+    "queue_pending",
+    "queue_stream_length",
+    "worker_healthy",
+    "worker_heartbeat_age_seconds",
+}
+
+
+def _click_payload(link_id: int) -> ClickPayload:
+    return ClickPayload(
+        link_id=link_id,
+        ts=datetime(2026, 5, 31, 9, 0, 0, tzinfo=UTC),
+        referrer=None,
+        ua=None,
+        source=Source.direct,
+    )
+
+
+async def test_health_returns_ok(client: AsyncClient) -> None:
+    response = await client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+async def test_metrics_empty_state_is_all_zeros(client: AsyncClient) -> None:
+    # No traffic yet (Redis freshly flushed): every counter zero, ratio 0.0, worker unknown.
+    response = await client.get("/api/metrics")
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == _METRICS_FIELDS
+    assert data["cache_hits"] == 0
+    assert data["cache_misses"] == 0
+    assert data["cache_hit_ratio"] == 0.0
+    assert data["total_redirects"] == 0
+    assert data["queue_pending"] == 0
+    assert data["queue_stream_length"] == 0
+    assert data["worker_healthy"] is False
+    assert data["worker_heartbeat_age_seconds"] is None
+
+
+async def test_metrics_derives_cache_hit_ratio_and_redirects(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    await redis_client.set(METRICS_CACHE_HIT_KEY, 8)
+    await redis_client.set(METRICS_CACHE_MISS_KEY, 2)
+    await redis_client.set(METRICS_REDIRECTS_TOTAL_KEY, 10)
+
+    data = (await client.get("/api/metrics")).json()
+    assert data["cache_hits"] == 8
+    assert data["cache_misses"] == 2
+    assert data["cache_hit_ratio"] == 0.8
+    assert data["total_redirects"] == 10
+
+
+async def test_metrics_reports_queue_pending_and_stream_length(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    await ensure_consumer_group(redis_client)
+    await add_click(redis_client, _click_payload(1))
+    await add_click(redis_client, _click_payload(2))
+    # Deliver both to a consumer so they are pending (delivered, not yet ACKed).
+    await read_clicks(redis_client, worker_consumer_name(1), block_ms=100)
+
+    data = (await client.get("/api/metrics")).json()
+    assert data["queue_pending"] == 2
+    assert data["queue_stream_length"] == 2
+
+
+async def test_metrics_worker_healthy_with_recent_heartbeat(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    await write_heartbeat(redis_client, time.time())
+    data = (await client.get("/api/metrics")).json()
+    assert data["worker_healthy"] is True
+    assert 0 <= data["worker_heartbeat_age_seconds"] <= WORKER_HEARTBEAT_STALE_SECONDS
+
+
+async def test_metrics_worker_unhealthy_with_stale_heartbeat(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    await write_heartbeat(redis_client, time.time() - WORKER_HEARTBEAT_STALE_SECONDS - 100)
+    data = (await client.get("/api/metrics")).json()
+    assert data["worker_healthy"] is False
+    assert data["worker_heartbeat_age_seconds"] > WORKER_HEARTBEAT_STALE_SECONDS

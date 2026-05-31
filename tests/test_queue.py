@@ -23,6 +23,7 @@ from linkshrink_shared.queue import (
     dead_letter,
     deserialize_click,
     ensure_consumer_group,
+    pending_count,
     read_clicks,
     read_heartbeat,
     serialize_click,
@@ -170,6 +171,27 @@ async def test_stream_length_counts_entries(redis_client: Redis) -> None:
     await add_click(redis_client, _payload(1))
     await add_click(redis_client, _payload(2))
     assert await stream_length(redis_client) == 2
+
+
+async def test_pending_count_is_zero_when_group_missing(redis_client: Redis) -> None:
+    # The consumer group has never been created → XPENDING raises NOGROUP, swallowed to 0.
+    assert await pending_count(redis_client) == 0
+
+
+async def test_pending_count_reports_delivered_unacked_entries(redis_client: Redis) -> None:
+    await ensure_consumer_group(redis_client)
+    await add_click(redis_client, _payload(1))
+    await add_click(redis_client, _payload(2))
+
+    # Deliver both (now pending, not yet ACKed) → backlog of 2.
+    batches = await read_clicks(redis_client, worker_consumer_name(1), block_ms=100)
+    _stream, entries = batches[0]
+    assert await pending_count(redis_client) == 2
+
+    # ACKing one drops it out of the pending-entries list.
+    first_message_id, _fields = entries[0]
+    await ack_click(redis_client, first_message_id)
+    assert await pending_count(redis_client) == 1
 
 
 async def test_dead_letter_appends_to_dead_stream(redis_client: Redis) -> None:

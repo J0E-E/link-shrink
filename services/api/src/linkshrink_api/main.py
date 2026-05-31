@@ -5,8 +5,8 @@ across requests: the async SQLAlchemy engine + session factory and the Redis cli
 all held on ``app.state`` and disposed on shutdown. Run it with
 ``uvicorn linkshrink_api.main:app``.
 
-Epic 6 mounts only the create router (``POST /api/links``). Later epics add the
-dashboard, analytics, QR, metrics, and health routers onto the same app.
+Epic 6 mounts the create router (``POST /api/links``); Epic 10 adds the system router
+(``/health`` + ``/api/metrics``). Later epics add the remaining routers onto the same app.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from linkshrink_api.routers import links
+from linkshrink_api.routers import links, system
 from linkshrink_shared import get_redis_client, get_settings
 
 
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
     """Build the API application with its routers mounted."""
     app = FastAPI(title="LinkShrink API", lifespan=lifespan)
     app.include_router(links.router)
+    app.include_router(system.router)
     return app
 
 

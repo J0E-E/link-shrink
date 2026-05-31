@@ -188,8 +188,27 @@ async def dead_letter(
 
 
 async def stream_length(redis: Redis, *, stream: str = CLICKS_STREAM) -> int:
-    """``XLEN`` of the stream — the queue-depth input for ``/api/metrics`` (Epic 10)."""
+    """``XLEN`` of the stream — total recent entries (capped by ``MAXLEN ~``), a volume
+    gauge for ``/api/metrics``; note entries persist past ``XACK`` so this is not backlog."""
     return await redis.xlen(stream)
+
+
+async def pending_count(
+    redis: Redis, *, group: str = CLICKS_CONSUMER_GROUP, stream: str = CLICKS_STREAM
+) -> int:
+    """``XPENDING`` summary count — entries delivered but not yet ``XACK``ed, i.e. the real
+    unprocessed backlog for ``/api/metrics`` (Epic 10).
+
+    Returns ``0`` when the consumer group does not exist yet (the worker has never started),
+    which ``XPENDING`` reports as a ``NOGROUP`` ``ResponseError``.
+    """
+    try:
+        summary = await redis.xpending(stream, group)
+    except ResponseError as error:
+        if "NOGROUP" in str(error):
+            return 0
+        raise
+    return int(summary["pending"])
 
 
 # --- Worker heartbeat (§5.2) -------------------------------------------------------

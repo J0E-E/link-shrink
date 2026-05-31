@@ -146,3 +146,33 @@ class LinkAnalyticsResponse(BaseModel):
     by_os_family: list[BreakdownItem]
     by_referrer_domain: list[BreakdownItem]
     by_source: list[BreakdownItem]
+
+
+class HealthResponse(BaseModel):
+    """200 body for ``GET /health`` — a pure liveness probe (§5.7, Epic 18a healthcheck).
+
+    Always ``{"status": "ok"}``; the endpoint does no dependency checks so it can't flap
+    on a slow database or Redis.
+    """
+
+    status: str
+
+
+class MetricsResponse(BaseModel):
+    """200 body for ``GET /api/metrics`` — live operational numbers (§5.7).
+
+    Derived from Redis counters the redirect service and worker write, so the values are
+    all zero until Epic 11 produces traffic. ``cache_hit_ratio`` is ``0.0`` when there
+    have been no lookups; ``queue_pending`` is the real unprocessed backlog (PEL size)
+    while ``queue_stream_length`` is the total recent stream entries (capped, not backlog);
+    ``worker_heartbeat_age_seconds`` is ``None`` when the worker has never written a heartbeat.
+    """
+
+    cache_hits: int
+    cache_misses: int
+    cache_hit_ratio: float
+    total_redirects: int
+    queue_pending: int
+    queue_stream_length: int
+    worker_healthy: bool
+    worker_heartbeat_age_seconds: float | None

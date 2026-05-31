@@ -38,6 +38,7 @@ from linkshrink_shared import (
 )
 from linkshrink_worker.consumer import run_consumer_once, run_recovery_once
 from linkshrink_worker.parsing import DerivedUserAgent, parse_user_agent, referrer_host
+from linkshrink_worker.purge import run_purge_once
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -221,6 +222,34 @@ async def _click_events(session_factory, link_id: int) -> list[ClickEvent]:
         return list(result)
 
 
+async def _seed_link_with_click(session_factory, short_code: str, expires_at: datetime) -> int:
+    """Insert one link with an explicit expiry plus a single click; return the link id."""
+    async with session_factory() as session:
+        link = Link(
+            short_code=short_code,
+            original_url=f"https://example.com/{short_code}",
+            is_custom=False,
+            expires_at=expires_at,
+        )
+        session.add(link)
+        await session.flush()
+        session.add(
+            ClickEvent(
+                link_id=link.id,
+                device_type=DeviceType.desktop,
+                source=Source.direct,
+            )
+        )
+        await session.commit()
+        return link.id
+
+
+async def _link_exists(session_factory, link_id: int) -> bool:
+    """True if the link row is still present."""
+    async with session_factory() as session:
+        return await session.get(Link, link_id) is not None
+
+
 def _consumer() -> str:
     return worker_consumer_name(1)
 
@@ -347,3 +376,30 @@ async def test_consumer_writes_heartbeat_each_pass(
     beat = await read_heartbeat(redis_client)
     assert beat is not None
     assert float(beat) > 0
+
+
+async def test_purge_deletes_links_expired_past_retention_and_cascades(session_factory) -> None:
+    """A link expired >3 months ago is purged with its clicks; nearer ones are retained."""
+    now = datetime.now(UTC)
+    old_id = await _seed_link_with_click(
+        session_factory, "expired-old", now - timedelta(days=100)
+    )
+    # 85 days is safely inside even the shortest 3-month window (~89 days), so it stays.
+    boundary_id = await _seed_link_with_click(
+        session_factory, "expired-boundary", now - timedelta(days=85)
+    )
+    recent_id = await _seed_link_with_click(
+        session_factory, "expired-recent", now - timedelta(days=1)
+    )
+
+    purged = await run_purge_once(session_factory)
+
+    assert purged == 1
+    # The long-expired link and its cascaded click events are gone.
+    assert await _link_exists(session_factory, old_id) is False
+    assert await _click_events(session_factory, old_id) == []
+    # Links expired more recently than the retention window keep their row (they still 404
+    # via redirect, but aren't purged) along with their clicks.
+    for retained_id in (boundary_id, recent_id):
+        assert await _link_exists(session_factory, retained_id) is True
+        assert len(await _click_events(session_factory, retained_id)) == 1

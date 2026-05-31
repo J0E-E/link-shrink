@@ -25,6 +25,13 @@ RECOVERY_INTERVAL_SECONDS = 30
 #: loop. Kept well under the 15s heartbeat threshold so a brief blip doesn't trip a restart.
 ERROR_BACKOFF_SECONDS = 1
 
+#: The purge job permanently deletes links this long after they expired (cascading to their
+#: click events) and runs on this interval. Daily is the right cadence for a 3-month
+#: retention window — a missed pass just defers a row's deletion to the next day. The
+#: interval string is cast to a Postgres ``interval`` and subtracted from the DB clock.
+PURGE_RETENTION_INTERVAL = "3 months"
+PURGE_INTERVAL_SECONDS = 86_400
+
 
 def get_worker_number() -> int:
     """Read this worker's number (for the ``worker-{n}`` consumer name) from the env.

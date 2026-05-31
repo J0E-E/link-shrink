@@ -1,9 +1,9 @@
 """Process wiring and the long-running loops for the analytics worker (TDD §5.2, §5.7).
 
 Builds the long-lived resources (async engine + session factory, Redis client), ensures
-the consumer group exists, then runs two asyncio tasks: the consumer loop as the main
-task and a periodic recovery task. A purge task (Epic 13) slots in here later via the same
-``create_task`` + interval pattern. SIGTERM/SIGINT trigger a graceful shutdown that
+the consumer group exists, then runs three asyncio tasks: the consumer loop as the main
+task, a periodic recovery task, and the periodic purge task (Epic 13) — the last two share
+the same ``create_task`` + interval pattern. SIGTERM/SIGINT trigger a graceful shutdown that
 cancels the tasks and disposes the connections. Run it with ``python -m linkshrink_worker.main``.
 """
 
@@ -23,11 +23,13 @@ from linkshrink_shared import (
 )
 from linkshrink_worker.config import (
     ERROR_BACKOFF_SECONDS,
+    PURGE_INTERVAL_SECONDS,
     RECOVERY_IDLE_MS,
     RECOVERY_INTERVAL_SECONDS,
     get_worker_number,
 )
 from linkshrink_worker.consumer import run_consumer_once, run_recovery_once
+from linkshrink_worker.purge import run_purge_once
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +72,21 @@ async def _recovery_loop(redis, session_factory, consumer, stop: asyncio.Event) 
         await _sleep_or_stop(stop, RECOVERY_INTERVAL_SECONDS)
 
 
+async def _purge_loop(session_factory, stop: asyncio.Event) -> None:
+    """Permanently delete long-expired links on a fixed interval until shutdown.
+
+    Follows the recovery loop: a pass that raises is logged and retried on the next
+    interval rather than killing the loop, and the wait is a cancellable ``stop`` wait so
+    shutdown is immediate. Needs only the session factory — the purge never touches Redis.
+    """
+    while not stop.is_set():
+        try:
+            await run_purge_once(session_factory)
+        except Exception:
+            logger.exception("purge pass failed; retrying next interval")
+        await _sleep_or_stop(stop, PURGE_INTERVAL_SECONDS)
+
+
 async def run() -> None:
     """Open resources, ensure the consumer group, and run the loops until shutdown."""
     logging.basicConfig(level=logging.INFO)
@@ -94,6 +111,7 @@ async def run() -> None:
     tasks = [
         asyncio.create_task(_consumer_loop(redis, session_factory, consumer, stop)),
         asyncio.create_task(_recovery_loop(redis, session_factory, consumer, stop)),
+        asyncio.create_task(_purge_loop(session_factory, stop)),
     ]
     try:
         await stop.wait()

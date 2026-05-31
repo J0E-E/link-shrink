@@ -94,7 +94,9 @@ def test_encode_rejects_non_positive() -> None:
 def test_empty_salt_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(ValueError):
         ShortCodeGenerator(salt="")
-    monkeypatch.delenv("HASHIDS_SALT", raising=False)
+    # Set to "" (not delenv): an env var overrides the dev `.env` dotenv source, so the
+    # "salt unset" path is exercised deterministically whether or not a local .env exists.
+    monkeypatch.setenv("HASHIDS_SALT", "")
     with pytest.raises(RuntimeError):
         default_short_code_generator()
 

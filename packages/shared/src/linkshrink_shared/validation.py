@@ -24,11 +24,12 @@ from __future__ import annotations
 
 import ipaddress
 import logging
-import os
 import re
 import socket
 from collections.abc import Callable
 from urllib.parse import urlsplit
+
+from linkshrink_shared.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +65,8 @@ MAX_URL_LENGTH = 2048
 #: rejected to keep links to real, fetchable web resources only.
 ALLOWED_URL_SCHEMES: frozenset[str] = frozenset({"http", "https"})
 
-#: Env var holding the public host used for self-reference rejection. Read directly
-#: here as a deliberate Epic-4 stand-in (mirroring Epic 3's ``HASHIDS_SALT`` read);
-#: Epic 5's ``config.py`` will later route this through shared config.
+#: Env var holding the public host used for self-reference rejection, surfaced through
+#: shared config (Epic 5's ``config.py``). Named here only for a precise error message.
 PUBLIC_HOST_ENV_VAR = "PUBLIC_HOST"
 
 #: Reasons attached to :class:`ValidationError`. Exposed so the API (Epic 6) and tests
@@ -120,12 +120,13 @@ def default_host_resolver(hostname: str) -> list[str]:
 
 
 def default_public_host() -> str:
-    """Read the public host from the ``PUBLIC_HOST`` environment variable.
+    """Read the public host from shared config.
 
-    Epic-4 stand-in until Epic 5's ``config.py`` provides centralized config; mirrors
-    :func:`linkshrink_shared.shortcode.default_short_code_generator`.
+    Routes through :func:`linkshrink_shared.config.get_settings` (Epic 5); raises
+    ``RuntimeError`` when unset so self-reference rejection can never silently no-op.
+    Mirrors :func:`linkshrink_shared.shortcode.default_short_code_generator`.
     """
-    public_host = os.environ.get(PUBLIC_HOST_ENV_VAR, "")
+    public_host = get_settings().public_host
     if not public_host:
         raise RuntimeError(
             f"{PUBLIC_HOST_ENV_VAR} is not set; cannot reject self-referential URLs"

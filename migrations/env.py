@@ -5,17 +5,13 @@ The DB URL is resolved as follows:
 
 1. An explicit `sqlalchemy.url` set on the Alembic Config (used by the Testcontainers
    tests, which point Alembic at the throwaway container).
-2. Otherwise built from the POSTGRES_* env vars (the same vars in .env.example).
-
-This direct env read is a deliberate Epic-2-era stand-in: linkshrink_shared.config
-(pydantic-settings) does not exist until Epic 5, and migrations must run before any
-service config is loaded. Epic 5 may later route this through the shared config.
+2. Otherwise the shared config's `database_url` (built from the POSTGRES_* env vars /
+   `.env`), so migrations and services agree on one connection string.
 """
 
 from __future__ import annotations
 
 import asyncio
-import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -23,6 +19,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+from linkshrink_shared.config import get_settings
 from linkshrink_shared.models import Base
 
 config = context.config
@@ -34,17 +31,11 @@ target_metadata = Base.metadata
 
 
 def get_database_url() -> str:
-    """Return an explicit configured URL, else build one from POSTGRES_* env vars."""
+    """Return an explicit configured URL, else the shared config's ``database_url``."""
     configured_url = config.get_main_option("sqlalchemy.url")
     if configured_url:
         return configured_url
-
-    user = os.environ.get("POSTGRES_USER", "linkshrink")
-    password = os.environ.get("POSTGRES_PASSWORD", "")
-    host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = os.environ.get("POSTGRES_PORT", "5432")
-    database = os.environ.get("POSTGRES_DB", "linkshrink")
-    return f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}"
+    return get_settings().database_url
 
 
 def run_migrations_offline() -> None:

@@ -273,7 +273,9 @@ def test_default_public_host_reads_env(monkeypatch):
 
 
 def test_default_public_host_raises_when_unset(monkeypatch):
-    monkeypatch.delenv("PUBLIC_HOST", raising=False)
+    # Set to "" (not delenv): an env var overrides the dev `.env` dotenv source, so the
+    # "host unset" path is exercised deterministically whether or not a local .env exists.
+    monkeypatch.setenv("PUBLIC_HOST", "")
     with pytest.raises(RuntimeError):
         default_public_host()
 

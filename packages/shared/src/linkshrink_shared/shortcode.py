@@ -19,12 +19,12 @@ grammar allows is for *custom* aliases (Epic 4), never for generated codes.
 from __future__ import annotations
 
 import logging
-import os
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
 from hashids import Hashids
 
+from linkshrink_shared.config import get_settings
 from linkshrink_shared.models import link_code_seq
 
 if TYPE_CHECKING:
@@ -45,9 +45,8 @@ SHORT_CODE_MIN_LENGTH = 6
 #: impossible — this is a safety cap, not an expected-to-be-hit limit.
 DEFAULT_MAX_ATTEMPTS = 5
 
-#: Env var holding the hashids salt. Read directly here as a deliberate Epic-3
-#: stand-in (mirroring Epic 2's direct env read in ``migrations/env.py``); Epic 5's
-#: ``config.py`` will later route this through shared pydantic-settings config.
+#: Env var holding the hashids salt, surfaced through shared config (Epic 5's
+#: ``config.py``). Named here only so the "salt unset" error message stays precise.
 HASHIDS_SALT_ENV_VAR = "HASHIDS_SALT"
 
 
@@ -96,11 +95,12 @@ class ShortCodeGenerator:
 
 
 def default_short_code_generator() -> ShortCodeGenerator:
-    """Build a generator from the ``HASHIDS_SALT`` environment variable.
+    """Build a generator from the shared config's hashids salt.
 
-    Epic-3 stand-in until Epic 5's ``config.py`` provides centralized config.
+    Routes through :func:`linkshrink_shared.config.get_settings` (Epic 5); raises
+    ``RuntimeError`` when the salt is unset so a missing secret fails loudly.
     """
-    salt = os.environ.get(HASHIDS_SALT_ENV_VAR, "")
+    salt = get_settings().hashids_salt
     if not salt:
         raise RuntimeError(
             f"{HASHIDS_SALT_ENV_VAR} is not set; cannot generate short codes"

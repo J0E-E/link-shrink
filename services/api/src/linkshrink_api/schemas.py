@@ -9,7 +9,7 @@ a plain optional integer here.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -104,3 +104,45 @@ class ListLinksResponse(BaseModel):
 
     items: list[LinkView]
     next_cursor: str | None
+
+
+class DailyClickBucket(BaseModel):
+    """One UTC day in the clicks-over-time series.
+
+    ``day`` is a UTC calendar date (the click's ``clicked_at`` floored with
+    ``date_trunc('day', … AT TIME ZONE 'UTC')``); ``count`` is the clicks on that day.
+    The series is sparse — only days that actually have clicks appear.
+    """
+
+    day: date
+    count: int
+
+
+class BreakdownItem(BaseModel):
+    """One row of a breakdown — a dimension value and how many clicks had it.
+
+    Nullable dimensions (referrer_domain, browser_family, os_family) report a missing
+    value as the literal ``"unknown"``, so a breakdown's counts always sum to
+    ``total_clicks``.
+    """
+
+    value: str
+    count: int
+
+
+class LinkAnalyticsResponse(BaseModel):
+    """200 body for ``GET /api/links/{code}/analytics`` — aggregated server-side (§5.8).
+
+    ``total_clicks`` is the overall count; ``daily`` is the sparse UTC time series; the
+    ``by_*`` lists are per-dimension breakdowns, each ordered most-clicks-first. A link
+    with no clicks returns ``total_clicks=0`` and every list empty.
+    """
+
+    short_code: str
+    total_clicks: int
+    daily: list[DailyClickBucket]
+    by_device_type: list[BreakdownItem]
+    by_browser_family: list[BreakdownItem]
+    by_os_family: list[BreakdownItem]
+    by_referrer_domain: list[BreakdownItem]
+    by_source: list[BreakdownItem]

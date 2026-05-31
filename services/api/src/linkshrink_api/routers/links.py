@@ -19,6 +19,7 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select, tuple_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from linkshrink_api.analytics import aggregate_link_analytics
 from linkshrink_api.dependencies import (
     get_client_ip,
     get_db_session,
@@ -38,8 +39,11 @@ from linkshrink_api.errors import (
 from linkshrink_api.pagination import decode_cursor, encode_cursor
 from linkshrink_api.persistence import try_insert_link
 from linkshrink_api.schemas import (
+    BreakdownItem,
     CreateLinkRequest,
     CreateLinkResponse,
+    DailyClickBucket,
+    LinkAnalyticsResponse,
     LinkView,
     ListLinksResponse,
     clamp_limit,
@@ -185,6 +189,39 @@ async def get_link(
     if link is None:
         raise link_not_found_error(code)
     return _link_to_view(link, settings.public_host)
+
+
+@router.get("/api/links/{code}/analytics", response_model=LinkAnalyticsResponse)
+async def get_link_analytics(
+    code: str,
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> LinkAnalyticsResponse:
+    """Aggregated analytics for one link → 200, or 404 if no such code (§5.8).
+
+    Looks the link up the same case-insensitive way as the detail endpoint, then rolls
+    up its ``click_events`` by ``link.id``. A link with no clicks returns a zeroed body.
+    """
+    query = select(Link).where(func.lower(Link.short_code) == code.lower())
+    link = await session.scalar(query)
+    if link is None:
+        raise link_not_found_error(code)
+
+    analytics = await aggregate_link_analytics(session, link.id)
+    return LinkAnalyticsResponse(
+        short_code=link.short_code,
+        total_clicks=analytics.total_clicks,
+        daily=[DailyClickBucket(day=day, count=count) for day, count in analytics.daily],
+        by_device_type=_to_breakdown(analytics.by_device_type),
+        by_browser_family=_to_breakdown(analytics.by_browser_family),
+        by_os_family=_to_breakdown(analytics.by_os_family),
+        by_referrer_domain=_to_breakdown(analytics.by_referrer_domain),
+        by_source=_to_breakdown(analytics.by_source),
+    )
+
+
+def _to_breakdown(rows: list[tuple[str, int]]) -> list[BreakdownItem]:
+    """Map ``(value, count)`` aggregate rows to the wire breakdown items."""
+    return [BreakdownItem(value=value, count=count) for value, count in rows]
 
 
 async def _create_with_alias(

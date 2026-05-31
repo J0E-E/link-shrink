@@ -23,6 +23,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient, Response
 from redis.asyncio import Redis
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from linkshrink_api.dependencies import (
@@ -32,7 +33,15 @@ from linkshrink_api.dependencies import (
     get_settings_dependency,
 )
 from linkshrink_api.main import create_app
-from linkshrink_shared import RATE_LIMIT_PER_DAY, Link, Settings, ratelimit_day_key
+from linkshrink_shared import (
+    RATE_LIMIT_PER_DAY,
+    ClickEvent,
+    DeviceType,
+    Link,
+    Settings,
+    Source,
+    ratelimit_day_key,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -445,3 +454,177 @@ async def test_get_unknown_code_returns_404(client: AsyncClient) -> None:
     response = await client.get("/api/links/does-not-exist")
     assert response.status_code == 404
     assert response.json()["detail"]["reason"] == "not_found"
+
+
+# --- Epic 8: per-link analytics aggregation ----------------------------------------
+
+ANALYTICS_FIELDS = {
+    "short_code",
+    "total_clicks",
+    "daily",
+    "by_device_type",
+    "by_browser_family",
+    "by_os_family",
+    "by_referrer_domain",
+    "by_source",
+}
+
+#: A fixed click time used by clicks that don't care about the daily bucketing.
+_CLICK_TIME = datetime(2026, 3, 1, 12, 0, tzinfo=UTC)
+
+
+def _click(**overrides) -> dict:
+    """Build a ClickEvent field dict with sane defaults; override only what a test cares about."""
+    fields = {
+        "clicked_at": _CLICK_TIME,
+        "device_type": DeviceType.desktop,
+        "source": Source.direct,
+        "referrer_domain": "example.com",
+        "browser_family": "Chrome",
+        "os_family": "Windows",
+    }
+    fields.update(overrides)
+    return fields
+
+
+async def _seed_clicks(session_factory, code: str, clicks: list[dict]) -> None:
+    """Insert ClickEvent rows for the link with ``code`` (looked up by short code)."""
+    async with session_factory() as session:
+        link = await session.scalar(select(Link).where(Link.short_code == code))
+        for click in clicks:
+            session.add(ClickEvent(link_id=link.id, **click))
+        await session.commit()
+
+
+async def _analytics(client: AsyncClient, code: str) -> Response:
+    """GET /api/links/{code}/analytics."""
+    return await client.get(f"/api/links/{code}/analytics")
+
+
+async def test_analytics_unknown_code_returns_404(client: AsyncClient) -> None:
+    response = await _analytics(client, "does-not-exist")
+    assert response.status_code == 404
+    assert response.json()["detail"]["reason"] == "not_found"
+
+
+async def test_analytics_empty_link_returns_zeroed_structure(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    response = await _analytics(client, code)
+    assert response.status_code == 200
+    data = response.json()
+    assert set(data) == ANALYTICS_FIELDS
+    assert data["short_code"] == code
+    assert data["total_clicks"] == 0
+    assert data["daily"] == []
+    for dimension in ("by_device_type", "by_browser_family", "by_os_family",
+                      "by_referrer_domain", "by_source"):
+        assert data[dimension] == []
+
+
+async def test_analytics_reports_total_clicks(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [_click() for _ in range(7)])
+    data = (await _analytics(client, code)).json()
+    assert data["total_clicks"] == 7
+
+
+async def test_analytics_daily_buckets_use_utc(
+    client: AsyncClient, session_factory
+) -> None:
+    # Three clicks: two on the UTC day 2026-03-01 (one of them at 23:30, just before
+    # UTC midnight) and one at 00:30 on 2026-03-02. UTC bucketing must split them into
+    # two days; DB-local-day bucketing would group them differently.
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [
+        _click(clicked_at=datetime(2026, 3, 1, 10, 0, tzinfo=UTC)),
+        _click(clicked_at=datetime(2026, 3, 1, 23, 30, tzinfo=UTC)),
+        _click(clicked_at=datetime(2026, 3, 2, 0, 30, tzinfo=UTC)),
+    ])
+    daily = (await _analytics(client, code)).json()["daily"]
+    assert daily == [
+        {"day": "2026-03-01", "count": 2},
+        {"day": "2026-03-02", "count": 1},
+    ]
+
+
+async def test_analytics_breakdown_by_enum_dimensions(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [
+        _click(device_type=DeviceType.mobile, source=Source.qr),
+        _click(device_type=DeviceType.mobile, source=Source.direct),
+        _click(device_type=DeviceType.desktop, source=Source.direct),
+    ])
+    data = (await _analytics(client, code)).json()
+    # Ordered most-clicks-first.
+    assert data["by_device_type"] == [
+        {"value": "mobile", "count": 2},
+        {"value": "desktop", "count": 1},
+    ]
+    assert data["by_source"] == [
+        {"value": "direct", "count": 2},
+        {"value": "qr", "count": 1},
+    ]
+
+
+async def test_analytics_null_dimensions_coalesce_to_unknown(
+    client: AsyncClient, session_factory
+) -> None:
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [
+        _click(referrer_domain="example.com", browser_family="Chrome", os_family="Windows"),
+        _click(referrer_domain=None, browser_family=None, os_family=None),
+        _click(referrer_domain=None, browser_family=None, os_family=None),
+    ])
+    data = (await _analytics(client, code)).json()
+    # NULLs become an "unknown" bucket, so each breakdown still sums to total_clicks (3).
+    assert data["by_referrer_domain"] == [
+        {"value": "unknown", "count": 2},
+        {"value": "example.com", "count": 1},
+    ]
+    assert data["by_browser_family"] == [
+        {"value": "unknown", "count": 2},
+        {"value": "Chrome", "count": 1},
+    ]
+    assert data["by_os_family"] == [
+        {"value": "unknown", "count": 2},
+        {"value": "Windows", "count": 1},
+    ]
+
+
+async def test_analytics_breakdown_tiebreak_is_deterministic(
+    client: AsyncClient, session_factory
+) -> None:
+    # Equal counts must order by value ascending so the response is stable.
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [
+        _click(referrer_domain="zebra.example"),
+        _click(referrer_domain="alpha.example"),
+    ])
+    by_referrer = (await _analytics(client, code)).json()["by_referrer_domain"]
+    assert by_referrer == [
+        {"value": "alpha.example", "count": 1},
+        {"value": "zebra.example", "count": 1},
+    ]
+
+
+async def test_analytics_enum_breakdown_tiebreak_is_alphabetical(
+    client: AsyncClient, session_factory
+) -> None:
+    # Enum dimensions tie-break by string value ascending too — not by the enum's
+    # declaration order. "desktop" sorts before "mobile" on an equal count.
+    [code] = await _seed_links(session_factory, 1)
+    await _seed_clicks(session_factory, code, [
+        _click(device_type=DeviceType.mobile),
+        _click(device_type=DeviceType.desktop),
+    ])
+    by_device_type = (await _analytics(client, code)).json()["by_device_type"]
+    assert by_device_type == [
+        {"value": "desktop", "count": 1},
+        {"value": "mobile", "count": 1},
+    ]

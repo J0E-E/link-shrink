@@ -1,0 +1,101 @@
+.card {
+  width: 100%;
+  max-width: 720px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-large);
+  box-shadow: var(--shadow-card);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  text-align: left;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.shortUrlRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.shortUrl {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--color-accent);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  overflow-wrap: anywhere;
+}
+
+.shortUrl:hover {
+  text-decoration: underline;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.detailTerm {
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.detailValue {
+  margin: 0;
+  font-size: var(--font-size-small);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.resetButton {
+  align-self: flex-start;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-text);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  cursor: pointer;
+  transition: background-color var(--transition-base);
+}
+
+.resetButton:hover {
+  background-color: var(--color-surface-raised);
+}
+
+@media (max-width: 640px) {
+  .shortUrlRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .details {
+    grid-template-columns: 1fr;
+    gap: var(--space-1) 0;
+  }
+
+  .detailValue {
+    margin-bottom: var(--space-3);
+  }
+
+  .resetButton {
+    align-self: stretch;
+  }
+}

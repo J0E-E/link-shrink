@@ -44,9 +44,14 @@
   cursor: not-allowed;
 }
 
+.input[aria-invalid="true"] {
+  border-color: var(--color-warning);
+}
+
 .submitButton {
   align-self: flex-start;
   padding: var(--space-3) var(--space-6);
+  font-size: var(--font-size-base);
   font-weight: 600;
   color: var(--color-text);
   background-color: var(--color-accent);
@@ -65,10 +70,21 @@
   cursor: not-allowed;
 }
 
-.hint {
+.fieldError {
   font-size: var(--font-size-small);
-  color: var(--color-text-secondary);
+  color: var(--color-warning);
+}
+
+.formError {
+  font-size: var(--font-size-small);
+  color: var(--color-warning);
   text-align: left;
+  min-height: 1.25rem;
+  margin: 0;
+}
+
+.formError:empty {
+  display: none;
 }
 
 @media (max-width: 640px) {

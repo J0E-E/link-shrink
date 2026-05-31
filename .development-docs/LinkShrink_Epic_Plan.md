@@ -243,11 +243,23 @@ Every epic is sized to a single reviewable commit and leaves `development` worki
   - **CLAUDE.md compliance:** every rendered element carries a unique, descriptive `id` (including `index.html` head elements, wrappers, headings, list items, icons); components are small and single-responsibility; names are descriptive with boolean `is*` prefixes (`isMobileNavOpen`, `isOpen`, `is_custom` mirrored as `is_custom` in types).
   - **Verified:** `npm install` ✓ (180 packages); `npm run build` (`tsc -b && vite build`) ✓ succeeds; `npm run lint` (ESLint flat config) ✓ clean; `npm run dev` boots and serves `/`, `/dashboard`, `/how-it-works` client-side (200 via SPA fallback) with the demo banner + visibility notice rendering.
 
-## Epic 15 — Frontend: Home (shorten → result card)
+## Epic 15 — Frontend: Home (shorten → result card) — COMPLETED
 - **Intent:** The primary paste → shorten → copy → QR flow.
 - **Scope:** Home page URL input as primary focus; submit → `POST /api/links`; result card with short URL, copy button (green success), QR download (PNG/SVG via `/qr`); inline validation/error states (400/409/429 surfaced clearly); small focused components per CLAUDE.md.
 - **Verification:** Manual: paste a URL → get short link, copy works, QR downloads; error cases (bad URL, taken alias, rate limited) show clear messages. Against the running API stack.
 - **Depends on:** Epics 6, 9, 14.
+- **Implementation notes (delivered):**
+  - **Replaced the Epic 14 placeholder with a live `ShortenForm`** (`frontend/src/routes/HomePage/ShortenForm.tsx`); the disabled `ShortenPlaceholder.tsx`/`.module.css` were deleted and `HomePage` now renders `ShortenForm`. The URL field stays the visual focus per the design guide.
+  - **Split into small components** (per CLAUDE.md), all under `routes/HomePage/`: `ShortenForm` (orchestrator) → `AdvancedOptions` (collapsible alias + expiry), and on success → `ResultCard` → `CopyButton` + `QrPanel`. The form swaps itself for the `ResultCard` on success and back via "Shorten another".
+  - **Request state lives in a `useCreateLink` hook** (`useCreateLink.ts`): a `idle | submitting | success | error` machine that reuses the existing `createLink` client and holds an `AbortController` ref so a superseded or unmounted request can't overwrite newer state. Form field values (`url`, `alias`, `ttlSeconds`, advanced open) stay local to `ShortenForm`.
+  - **Errors branch on the symbolic `reason`** via `describeCreateLinkError` (`createLinkErrors.ts`) → `{ field: "url" | "alias" | "form", message }`, so a 400 `url_*` shows under the URL field, alias `length/grammar/hyphen/reserved/taken` (400/409) under the alias field, and `rate_limited` (429) at form level. Unknown `ApiError`s fall back to the API's own message; non-API errors get a generic message.
+  - **Custom alias behind an "Advanced options" toggle** (confirmed with user, over an always-visible field) — keeps the primary flow clean while still exercising the `alias_taken`/`alias_reserved` paths. The toggle mirrors `MobileNavToggle`'s `aria-controls`/`aria-expanded` pattern.
+  - **Expiry selector added** (confirmed with user) — a `<select>` of 1 hour / 1 day / 7 days / 30 days mapped to `ttl_seconds`, default 30 days. Options live in `expiry.ts` (separate module so component files only export components — keeps React Fast Refresh / lint clean).
+  - **QR = preview + PNG & SVG download** (confirmed with user): `QrPanel` shows the PNG via `buildQrUrl(code, "png")` on a white plate and offers PNG/SVG `<a download>` links (same-origin, so they save rather than navigate).
+  - **Copy button uses the green success state** (`--color-success`): `navigator.clipboard.writeText` with a hidden-textarea `execCommand` fallback, flipping to a green "Copied!" for ~2s.
+  - **CLAUDE.md compliance:** every rendered element carries a unique, descriptive `id` (form/inputs/labels, toggle, result card rows, QR image + download links); `<label htmlFor>` on every control; form error in an `aria-live="polite"` region; booleans use `is*`/`did*` prefixes.
+  - **Known limitation:** `ApiError` does not expose the 429 `Retry-After` header (the Epic 14 client only parses the JSON body), so the rate-limit message is generic rather than counting down — surfacing the exact seconds would mean extending the client and is deferred.
+  - **Verified:** `npm run lint` (ESLint flat config) ✓ clean; `npm run build` (`tsc -b && vite build`) ✓ succeeds (72 modules); `npm run dev` ✓ boots and serves `/` (200). Live end-to-end against the running API stack (happy path, advanced alias/expiry, and the bad-URL / taken-alias / rate-limited error cases) is left for review — there is no `docker-compose`/single-command stack bring-up in the repo yet.
 
 ## Epic 16 — Frontend: Dashboard + analytics views
 - **Intent:** Public paginated link list and per-link analytics rendering.

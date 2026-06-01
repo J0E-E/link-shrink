@@ -19,9 +19,7 @@ The data-level assertions use a fresh async engine.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
-import pytest
 import sqlalchemy as sa
 from alembic import command
 from alembic.config import Config
@@ -29,7 +27,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from linkshrink_shared.models import ClickEvent, DeviceType, Link, Source
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+# The database_url / alembic_config / schema_at_head fixtures live in tests/conftest.py.
 
 EXPECTED_INDEXES = {
     "uq_links_lower_short_code",
@@ -37,49 +35,6 @@ EXPECTED_INDEXES = {
     "ix_links_expires_at",
     "ix_click_events_link_id_clicked_at",
 }
-
-
-@pytest.fixture(scope="module")
-def database_url() -> str:
-    """Start a throwaway Postgres and yield an asyncpg URL; skip if Docker is absent."""
-    try:
-        from testcontainers.postgres import PostgresContainer
-    except ImportError as error:  # pragma: no cover - dev dependency missing
-        pytest.skip(f"testcontainers not installed: {error}")
-
-    try:
-        container = PostgresContainer("postgres:16-alpine")
-        container.start()
-    except Exception as error:  # pragma: no cover - Docker unavailable
-        pytest.skip(f"Docker/Postgres container unavailable: {error}")
-
-    try:
-        host = container.get_container_host_ip()
-        port = container.get_exposed_port(5432)
-        url = (
-            f"postgresql+asyncpg://{container.username}:{container.password}"
-            f"@{host}:{port}/{container.dbname}"
-        )
-        yield url
-    finally:
-        container.stop()
-
-
-@pytest.fixture(scope="module")
-def alembic_config(database_url: str) -> Config:
-    """An Alembic Config pointed at the throwaway container."""
-    config = Config(str(REPO_ROOT / "alembic.ini"))
-    config.set_main_option("script_location", str(REPO_ROOT / "migrations"))
-    config.set_main_option("sqlalchemy.url", database_url)
-    return config
-
-
-@pytest.fixture
-def schema_at_head(alembic_config: Config, database_url: str) -> str:
-    """Reset to an empty DB then migrate to head, so each test starts clean."""
-    command.downgrade(alembic_config, "base")
-    command.upgrade(alembic_config, "head")
-    return database_url
 
 
 async def _fetch_names(url: str, query: str) -> set[str]:

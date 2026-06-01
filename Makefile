@@ -10,7 +10,17 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 BASE_IMAGE := linkshrink-base
 BASE_DOCKERFILE := infra/docker/python-base.Dockerfile
 
-.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean
+.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean test lint
+
+# Run the full test suite (unit + Testcontainers integration). Needs Docker running for
+# the container-backed tests; without Docker those skip and the suite still passes. This
+# is the single command CI runs (see .github/workflows/tests.yml).
+test:
+	pytest
+
+# Lint the whole repo.
+lint:
+	ruff check .
 
 # Build the shared Epic 1 base image the service Dockerfiles extend.
 base:

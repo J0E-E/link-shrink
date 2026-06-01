@@ -23,7 +23,7 @@ try {
     docker compose -f infra/docker-compose.yml ps
 
     Write-Host ""
-    Write-Host "Open https://localhost (self-signed cert — accept the browser warning)."
+    Write-Host "Open https://localhost (self-signed cert - accept the browser warning)."
 }
 finally {
     Pop-Location

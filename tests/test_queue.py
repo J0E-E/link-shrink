@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta, timezone
 
-import pytest
-import pytest_asyncio
 from redis.asyncio import Redis
 
 from linkshrink_shared.models import Source
@@ -88,39 +86,8 @@ def test_worker_consumer_name() -> None:
 
 
 # --- Testcontainers Redis ----------------------------------------------------------
-
-
-@pytest.fixture(scope="module")
-def redis_url() -> str:
-    """Start a throwaway Redis and yield its URL; skip if Docker is absent."""
-    try:
-        from testcontainers.redis import RedisContainer
-    except ImportError as error:  # pragma: no cover - dev dependency missing
-        pytest.skip(f"testcontainers not installed: {error}")
-
-    try:
-        container = RedisContainer("redis:7-alpine")
-        container.start()
-    except Exception as error:  # pragma: no cover - Docker unavailable
-        pytest.skip(f"Docker/Redis container unavailable: {error}")
-
-    try:
-        host = container.get_container_host_ip()
-        port = container.get_exposed_port(6379)
-        yield f"redis://{host}:{port}"
-    finally:
-        container.stop()
-
-
-@pytest_asyncio.fixture
-async def redis_client(redis_url: str) -> Redis:
-    """A decoded async client against a freshly-flushed DB, closed after each test."""
-    client = Redis.from_url(redis_url, decode_responses=True)
-    await client.flushdb()
-    try:
-        yield client
-    finally:
-        await client.aclose()
+#
+# The redis_url + redis_client fixtures live in tests/conftest.py.
 
 
 def _payload(link_id: int = 7) -> ClickPayload:

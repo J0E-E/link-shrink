@@ -1,8 +1,9 @@
-# LinkShrink — Windows bring-up helper (Epic 18a).
+# LinkShrink — Windows bring-up helper (Epics 18a + 18b).
 #
 # PowerShell equivalent of `make up` for hosts without `make`. Builds the shared
-# Epic 1 base image the service Dockerfiles extend, then builds and starts the
-# Compose core stack. Run from the repo root:  ./infra/up.ps1
+# Epic 1 base image the api/redirect/worker services extend, then builds and
+# starts the full stack — including the Epic 18b frontend-build and nginx edge.
+# Run from the repo root:  ./infra/up.ps1
 
 $ErrorActionPreference = "Stop"
 
@@ -20,6 +21,9 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "docker compose up failed" }
 
     docker compose -f infra/docker-compose.yml ps
+
+    Write-Host ""
+    Write-Host "Open https://localhost (self-signed cert — accept the browser warning)."
 }
 finally {
     Pop-Location

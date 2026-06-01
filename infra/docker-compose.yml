@@ -1,8 +1,10 @@
-# LinkShrink — Compose core (Epic 18a).
+# LinkShrink — full stack (Epics 18a + 18b).
 #
-# Brings up the backend half of the stack: Postgres, Redis, a one-shot migration
-# step, and the three Python services (api, redirect, worker). The public Nginx
-# proxy, TLS, and the static frontend are added in Epic 18b.
+# Epic 18a brings up the backend half: Postgres, Redis, a one-shot migration
+# step, and the three Python services (api, redirect, worker). Epic 18b adds the
+# public edge: a one-shot frontend-build (compiles the SPA into a shared volume)
+# and an nginx service doing TLS termination, real-IP recovery, the QR edge
+# cache, and the §5.10 routing precedence — completing the full-system bring-up.
 #
 # Bring-up (from the repo root):
 #   make up          # builds the base image first, then this stack
@@ -162,9 +164,72 @@ services:
     networks:
       - linkshrink
 
+  # One-shot SPA build (Epic 18b, mirrors `migrate`). Runs the Vite production
+  # build and publishes the static dist/ into the shared frontend-dist volume,
+  # then exits 0. The nginx service waits on its successful completion.
+  frontend-build:
+    build:
+      context: ..
+      dockerfile: infra/docker/frontend-build.Dockerfile
+    image: linkshrink-frontend-build
+    restart: "no"
+    volumes:
+      - frontend-dist:/out
+    networks:
+      - linkshrink
+
+  # Public edge proxy (Epic 18b): TLS termination, real-IP recovery, the QR edge
+  # cache, and the §5.10 routing precedence. The only service published to the
+  # host — the api/redirect services stay internal and are reached only through
+  # here. PUBLIC_HOST (from .env) names the self-signed cert generated on first
+  # boot when no cert is mounted (see infra/nginx/docker-entrypoint.sh).
+  nginx:
+    build:
+      context: ..
+      dockerfile: infra/docker/nginx.Dockerfile
+    image: linkshrink-nginx
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Drop-in runs before nginx starts; generates the self-signed cert if absent.
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.d/99-self-signed.sh:ro
+      - frontend-dist:/usr/share/nginx/html:ro
+      - nginx-certs:/etc/nginx/certs
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      frontend-build:
+        condition: service_completed_successfully
+      api:
+        condition: service_healthy
+      redirect:
+        condition: service_healthy
+    # End-to-end probe: /health routes through to the API (block 2), so this
+    # reports healthy only when nginx AND the API behind it are serving. busybox
+    # wget; --no-check-certificate because the local cert is self-signed.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--no-check-certificate", "https://localhost/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - linkshrink
+
 volumes:
   postgres-data:
   redis-data:
+  # Built SPA assets handed from frontend-build to nginx.
+  frontend-dist:
+  # Persisted TLS cert (self-signed locally, or a mounted prod cert).
+  nginx-certs:
+  # Backs the QR proxy_cache zone in nginx.conf.
+  nginx-cache:
 
 networks:
   linkshrink:

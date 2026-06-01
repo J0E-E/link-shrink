@@ -1,14 +1,16 @@
-# LinkShrink — developer bring-up targets (Epic 18a).
+# LinkShrink — developer bring-up targets (Epics 18a + 18b).
 #
-# The service Dockerfiles build `FROM linkshrink-base`, so that shared base image
-# must exist before the stack builds. These targets build it first, then drive
-# `docker compose` against infra/docker-compose.yml. Run them from the repo root.
+# The api/redirect/worker/migrate Dockerfiles build `FROM linkshrink-base`, so
+# that shared base image must exist before the stack builds. These targets build
+# it first, then drive `docker compose` against infra/docker-compose.yml. (The
+# Epic 18b nginx + frontend-build services need no base image — nginx:alpine and
+# a Node build image.) Run them from the repo root.
 
 COMPOSE := docker compose -f infra/docker-compose.yml
 BASE_IMAGE := linkshrink-base
 BASE_DOCKERFILE := infra/docker/python-base.Dockerfile
 
-.PHONY: base build up down logs migrate ps
+.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean
 
 # Build the shared Epic 1 base image the service Dockerfiles extend.
 base:
@@ -37,3 +39,15 @@ migrate: base
 # Show service/health status.
 ps:
 	$(COMPOSE) ps
+
+# Rebuild the SPA and republish it into the frontend-dist volume nginx serves.
+frontend:
+	$(COMPOSE) run --rm --build frontend-build
+
+# Hot-reload nginx after editing the proxy config (no restart needed).
+nginx-reload:
+	$(COMPOSE) exec nginx nginx -s reload
+
+# Drop the self-signed cert; it regenerates on the next `up`.
+certs-clean:
+	docker volume rm linkshrink_nginx-certs

@@ -22,9 +22,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  /* Keeps the brand pinned left while the toggle + nav cluster on the right, for any
-     number of header controls. */
-  margin-right: auto;
+  /* Natural width on the left; the nav grows to fill the rest of the row so it can
+     center the primary links and push the external links to the right edge. */
+  flex: 0 0 auto;
   color: var(--color-text);
   font-size: var(--font-size-large);
   font-weight: 600;

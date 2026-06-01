@@ -1,6 +1,7 @@
 import { NavLink } from "react-router-dom";
 
 import { NAVIGATION_ITEMS } from "../../../navigation";
+import SiteNavExternalLinks from "./SiteNavExternalLinks";
 import styles from "./SiteNav.module.css";
 
 interface SiteNavProps {
@@ -35,6 +36,9 @@ export default function SiteNav({ navId, isMobileOpen, onNavigate }: SiteNavProp
             </NavLink>
           </li>
         ))}
+      </ul>
+      <ul className={styles.navExternalList} id="site-nav-external-list">
+        <SiteNavExternalLinks onNavigate={onNavigate} />
       </ul>
     </nav>
   );

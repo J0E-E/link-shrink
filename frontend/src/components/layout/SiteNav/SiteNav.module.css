@@ -1,10 +1,24 @@
 .nav {
   display: flex;
+  flex: 1;
+  align-items: center;
 }
 
 .navList {
   list-style: none;
   padding: 0;
+  /* Auto side margins center the primary links in the row and push the external list
+     to the right edge. */
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.navExternalList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -34,6 +48,26 @@
   background-color: var(--color-surface);
 }
 
+.navExternalLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-small);
+  color: var(--color-accent);
+  font-weight: 500;
+  transition: background-color var(--transition-base);
+}
+
+.navExternalLink:hover {
+  background-color: var(--color-surface);
+  text-decoration: none;
+}
+
+.navExternalIcon {
+  flex-shrink: 0;
+}
+
 /* Mobile: the nav collapses behind the toggle and stacks vertically when opened. */
 @media (max-width: 640px) {
   .nav {
@@ -43,17 +77,24 @@
 
   .navOpen {
     display: flex;
+    flex-direction: column;
   }
 
-  .navList {
+  .navList,
+  .navExternalList {
     flex-direction: column;
     align-items: stretch;
     width: 100%;
+    margin: 0;
     gap: var(--space-1);
+  }
+
+  .navList {
     padding-top: var(--space-3);
   }
 
-  .navLink {
+  .navLink,
+  .navExternalLink {
     width: 100%;
   }
 }

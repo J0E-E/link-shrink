@@ -39,6 +39,7 @@ case "$MODE" in
       --dns-route53 \
       --non-interactive --agree-tos --no-eff-email \
       --keep-until-expiring \
+      --expand \
       -m "$EMAIL" \
       -d "$DOMAIN" \
       -d "www.${DOMAIN}" \

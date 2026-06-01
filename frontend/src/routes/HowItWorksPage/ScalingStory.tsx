@@ -10,7 +10,7 @@ export default function ScalingStory() {
     <div className={styles.story} id="scaling-story">
       <p className={styles.intro} id="scaling-story-intro">
         LinkShrink is built as a scalable MVP: today the whole system runs on a single VM with one
-        container per service. That&apos;s a deliberate starting point, not a ceiling — each piece is
+        container per service. That&apos;s a deliberate starting point, not a ceiling. Each piece is
         built to scale out independently and move onto managed infrastructure when it needs to:
       </p>
       <ol className={styles.stages} id="scaling-story-stages">

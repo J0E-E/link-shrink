@@ -62,7 +62,7 @@ export default function HowIWorkPage() {
         </h2>
         <p className={styles.sectionLead} id="how-i-work-agents-lead">
           One review, many sets of eyes. The work is divided so each agent owns a single lens and
-          looks for nothing else — which is exactly what makes the pass thorough.
+          looks for nothing else, which is exactly what makes the pass thorough.
         </p>
         <ReviewAgents />
       </section>

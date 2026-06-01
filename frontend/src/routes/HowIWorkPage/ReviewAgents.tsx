@@ -14,7 +14,7 @@ const REVIEW_AGENTS = [
   {
     id: "review-agent-breaking",
     title: "No breaking changes",
-    detail: "The existing public surface — routes, signatures, config keys, schema — stays intact.",
+    detail: "The existing public surface (routes, signatures, config keys, schema) stays intact.",
   },
   {
     id: "review-agent-correctness",
@@ -34,7 +34,7 @@ const REVIEW_AGENTS = [
   {
     id: "review-agent-conventions",
     title: "Conventions & lint",
-    detail: "The project's own rules in CLAUDE.md — naming, HTML IDs, the design guide.",
+    detail: "The project's own rules in CLAUDE.md: naming, HTML IDs, the design guide.",
   },
   {
     id: "review-agent-tests",
@@ -52,9 +52,9 @@ export default function ReviewAgents() {
   return (
     <div className={styles.agents} id="review-agents">
       <p className={styles.lead} id="review-agents-lead">
-        A review isn&apos;t one pass — it fans out into a panel of agents working at once. Each gets the
+        A review isn&apos;t one pass. It fans out into a panel of agents working at once. Each gets the
         same diff and the epic&apos;s plan, then hunts for a single class of problem and reports back{" "}
-        <code id="review-agents-format">path:line — issue — fix</code>. No praise, no filler. Their
+        <code id="review-agents-format">path:line - issue - fix</code>. No praise, no filler. Their
         findings merge into one report I read top to bottom.
       </p>
 

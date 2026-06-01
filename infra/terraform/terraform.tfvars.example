@@ -12,6 +12,6 @@ ami_id            = ""                        # "" = latest Ubuntu 24.04; set to
 root_volume_size  = 30
 route53_zone_id   = "Z05112061FM24VGB8BNP9"  # link-shrink.org zone (managed in Epic 6)
 
-# DNS / container registry (Epic 6)
-ecr_repositories         = ["api", "redirect", "worker", "nginx", "migrate"]
+# DNS / container registry (Epic 6, frontend-build added in Epic 7)
+ecr_repositories         = ["api", "redirect", "worker", "nginx", "migrate", "frontend-build"]
 ecr_untagged_expire_days = 14

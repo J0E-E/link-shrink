@@ -1,0 +1,37 @@
+# Production overlay. Run alongside the base file on the host:
+#
+#   docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml up -d
+#
+# It swaps every built service from building on the box to pulling a prebuilt,
+# tagged image from ECR. `build: !reset null` removes the base file's build block
+# (needs Compose >= 2.24) so the image is pulled, never built. Everything else
+# (env_file, volumes, depends_on, healthchecks) is inherited unchanged.
+#
+# Two variables drive it, supplied from the shell environment:
+#   ECR_REGISTRY  defaults to the LinkShrink registry
+#   IMAGE_TAG     required (the commit SHA the images were built with)
+
+services:
+  migrate:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-migrate:${IMAGE_TAG:?set IMAGE_TAG}
+
+  api:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-api:${IMAGE_TAG:?set IMAGE_TAG}
+
+  redirect:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-redirect:${IMAGE_TAG:?set IMAGE_TAG}
+
+  worker:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-worker:${IMAGE_TAG:?set IMAGE_TAG}
+
+  frontend-build:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-frontend-build:${IMAGE_TAG:?set IMAGE_TAG}
+
+  nginx:
+    build: !reset null
+    image: ${ECR_REGISTRY:-310199963650.dkr.ecr.us-east-1.amazonaws.com}/linkshrink-nginx:${IMAGE_TAG:?set IMAGE_TAG}

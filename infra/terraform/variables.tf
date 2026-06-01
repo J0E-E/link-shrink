@@ -46,7 +46,7 @@ variable "route53_zone_id" {
 variable "ecr_repositories" {
   description = "Service names to create ECR repositories for. Each becomes linkshrink-<name>."
   type        = list(string)
-  default     = ["api", "redirect", "worker", "nginx", "migrate"]
+  default     = ["api", "redirect", "worker", "nginx", "migrate", "frontend-build"]
 }
 
 variable "ecr_untagged_expire_days" {

@@ -24,5 +24,7 @@
 @media (max-width: 640px) {
   .toggle {
     display: inline-flex;
+    /* Push the toggle to the right edge of the header row, away from the brand. */
+    margin-left: auto;
   }
 }

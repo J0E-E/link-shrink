@@ -41,6 +41,7 @@ case "$MODE" in
       --keep-until-expiring \
       -m "$EMAIL" \
       -d "$DOMAIN" \
+      -d "www.${DOMAIN}" \
       --deploy-hook "$DEPLOY_HOOK"
     ;;
   renew)

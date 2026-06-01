@@ -97,7 +97,7 @@ export default function ShortenForm() {
         type="submit"
         disabled={isSubmitting}
       >
-        {isSubmitting ? "Shortening…" : "Shorten"}
+        {isSubmitting ? "Shrinking…" : "Shrink it"}
       </button>
 
       <p className={styles.formError} id="shorten-form-error" role="alert">

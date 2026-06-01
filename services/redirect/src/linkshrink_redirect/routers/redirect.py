@@ -10,6 +10,7 @@ stays deliberately non-cacheable.
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime
 from typing import Annotated
 
@@ -20,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from linkshrink_redirect.dependencies import get_db_session, get_redis
 from linkshrink_redirect.resolution import resolve_code
-from linkshrink_shared import ClickPayload, Source, add_click, increment_redirects_total
+from linkshrink_shared import ClickPayload, Source, add_click, record_redirect
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +41,14 @@ async def redirect_to_target(
     source: Annotated[str | None, Query()] = None,
 ) -> RedirectResponse:
     """Resolve ``code`` to a 302, or 404 if it is unknown or expired (§5.6)."""
+    started_at = time.perf_counter()
     resolved = await resolve_code(redis, session, code)
     if resolved is None:
         raise HTTPException(status_code=404)
 
     await _queue_click(redis, request, code, resolved.link_id, source)
+    latency_us = int((time.perf_counter() - started_at) * 1_000_000)
+    await _record_served_redirect(redis, code, latency_us)
     return RedirectResponse(
         url=resolved.original_url, status_code=302, headers={"Cache-Control": "no-store"}
     )
@@ -53,10 +57,10 @@ async def redirect_to_target(
 async def _queue_click(
     redis: Redis, request: Request, code: str, link_id: int, source: str | None
 ) -> None:
-    """Best-effort: queue the click and bump the served-redirect counter.
+    """Best-effort: queue the click event for the analytics worker.
 
-    Wrapped so a Redis hiccup on either side-effect is swallowed and logged — the 302 is
-    already decided and must not depend on analytics (§5.6).
+    Wrapped so a Redis hiccup is swallowed and logged — the 302 is already decided and
+    must not depend on analytics (§5.6).
     """
     click_source = Source.qr if source == QR_SOURCE_VALUE else Source.direct
     payload = ClickPayload(
@@ -68,6 +72,17 @@ async def _queue_click(
     )
     try:
         await add_click(redis, payload)
-        await increment_redirects_total(redis)
     except Exception as error:  # noqa: BLE001 - analytics must never break the 302
         logger.warning("click enqueue failed for code %s: %s", code, error)
+
+
+async def _record_served_redirect(redis: Redis, code: str, latency_us: int) -> None:
+    """Best-effort: count the served redirect and add its latency to the running sum.
+
+    Separate from the click enqueue so the throughput/latency counters are recorded even
+    if analytics is down, and wrapped so a Redis hiccup can never break the 302 (§5.6).
+    """
+    try:
+        await record_redirect(redis, latency_us)
+    except Exception as error:  # noqa: BLE001 - metrics must never break the 302
+        logger.warning("redirect metrics update failed for code %s: %s", code, error)

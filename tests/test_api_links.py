@@ -38,6 +38,7 @@ from linkshrink_api.urls import build_qr_payload
 from linkshrink_shared import (
     METRICS_CACHE_HIT_KEY,
     METRICS_CACHE_MISS_KEY,
+    METRICS_REDIRECTS_LATENCY_US_KEY,
     METRICS_REDIRECTS_TOTAL_KEY,
     RATE_LIMIT_PER_DAY,
     WORKER_HEARTBEAT_STALE_SECONDS,
@@ -615,6 +616,7 @@ _METRICS_FIELDS = {
     "cache_misses",
     "cache_hit_ratio",
     "total_redirects",
+    "average_redirect_latency_ms",
     "queue_pending",
     "queue_stream_length",
     "worker_healthy",
@@ -648,6 +650,7 @@ async def test_metrics_empty_state_is_all_zeros(client: AsyncClient) -> None:
     assert data["cache_misses"] == 0
     assert data["cache_hit_ratio"] == 0.0
     assert data["total_redirects"] == 0
+    assert data["average_redirect_latency_ms"] is None
     assert data["queue_pending"] == 0
     assert data["queue_stream_length"] == 0
     assert data["worker_healthy"] is False
@@ -666,6 +669,27 @@ async def test_metrics_derives_cache_hit_ratio_and_redirects(
     assert data["cache_misses"] == 2
     assert data["cache_hit_ratio"] == 0.8
     assert data["total_redirects"] == 10
+
+
+async def test_metrics_derives_average_redirect_latency(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    # 8,000 µs of latency over 4 served redirects → 2,000 µs = 2.0 ms average.
+    await redis_client.set(METRICS_REDIRECTS_TOTAL_KEY, 4)
+    await redis_client.set(METRICS_REDIRECTS_LATENCY_US_KEY, 8000)
+
+    data = (await client.get("/api/metrics")).json()
+    assert data["average_redirect_latency_ms"] == 2.0
+
+
+async def test_metrics_average_latency_none_without_redirects(
+    client: AsyncClient, redis_client: Redis
+) -> None:
+    # Latency recorded but the redirect counter is somehow zero: report None, never divide by 0.
+    await redis_client.set(METRICS_REDIRECTS_LATENCY_US_KEY, 5000)
+
+    data = (await client.get("/api/metrics")).json()
+    assert data["average_redirect_latency_ms"] is None
 
 
 async def test_metrics_reports_queue_pending_and_stream_length(

@@ -17,7 +17,7 @@ export default function ResultCard({ result, onReset }: ResultCardProps) {
   return (
     <section className={styles.card} id="result-card" aria-labelledby="result-card-title">
       <h2 className={styles.title} id="result-card-title">
-        Your short link is ready
+        Ta-da! Your tiny link is ready
       </h2>
 
       <div className={styles.shortUrlRow} id="result-short-url-row">
@@ -56,7 +56,7 @@ export default function ResultCard({ result, onReset }: ResultCardProps) {
         id="result-reset-button"
         onClick={onReset}
       >
-        Shorten another
+        Shrink another
       </button>
     </section>
   );

@@ -18,7 +18,7 @@ export interface CreateLinkErrorInfo {
 /** URL validation reasons returned by the API (all map to the URL field). */
 const URL_ERROR_MESSAGES: Record<string, string> = {
   url_scheme: "Enter a URL that starts with http:// or https://.",
-  url_length: "That URL is too long — keep it under 2,048 characters.",
+  url_length: "Whoa, that URL is enormous. Keep it under 2,048 characters.",
   url_malformed: "That does not look like a valid URL. Check it and try again.",
   url_no_host: "That URL is missing a website address.",
   url_self_referential: "You cannot shorten a link that points back at this site.",
@@ -36,7 +36,7 @@ const ALIAS_ERROR_MESSAGES: Record<string, string> = {
   alias_taken: "That alias is already taken. Please choose another.",
 };
 
-const RATE_LIMITED_MESSAGE = "Too many requests — please wait a moment and try again.";
+const RATE_LIMITED_MESSAGE = "Easy there, speedy. Give it a moment and try again.";
 const FALLBACK_MESSAGE = "Something went wrong creating your link. Please try again.";
 
 /**

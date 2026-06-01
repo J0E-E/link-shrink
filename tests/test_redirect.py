@@ -27,6 +27,7 @@ from linkshrink_shared import (
     CLICKS_STREAM,
     METRICS_CACHE_HIT_KEY,
     METRICS_CACHE_MISS_KEY,
+    METRICS_REDIRECTS_LATENCY_US_KEY,
     METRICS_REDIRECTS_TOTAL_KEY,
     NEGATIVE_CACHE_TTL_SECONDS,
     CachedTarget,
@@ -153,6 +154,8 @@ async def test_known_code_redirects_302_and_queues_click(
 
     assert await read_counter(redis_client, METRICS_REDIRECTS_TOTAL_KEY) == 1
     assert await read_counter(redis_client, METRICS_CACHE_MISS_KEY) == 1
+    # The served redirect also records its handler latency (µs) for the average metric.
+    assert await read_counter(redis_client, METRICS_REDIRECTS_LATENCY_US_KEY) > 0
 
 
 async def test_source_qr_query_sets_qr_source(

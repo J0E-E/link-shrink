@@ -1,5 +1,7 @@
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-small);
   font-weight: 500;
@@ -8,4 +10,16 @@
   border: 1px solid var(--color-accent);
   border-radius: 999px;
   white-space: nowrap;
+}
+
+.icon {
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+
+.iconImage {
+  width: 1.1rem;
+  height: 1.1rem;
+  object-fit: contain;
+  display: block;
 }

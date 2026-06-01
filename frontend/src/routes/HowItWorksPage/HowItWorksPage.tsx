@@ -3,14 +3,12 @@ import ArchitectureDiagram from "./ArchitectureDiagram";
 import SystemFlows from "./SystemFlows";
 import TechBadgeGrid from "./TechBadgeGrid";
 import ScalingStory from "./ScalingStory";
-import LiveMetricsPanel from "./LiveMetricsPanel";
 import styles from "./HowItWorksPage.module.css";
 
 /**
- * The portfolio/educational page. The architecture, flows, badges, and scaling story are
- * static; only the live metrics panel reads the API. The architecture annotations
- * (`Annotation`) appear only when Educational Mode is on, so the header toggle visibly
- * changes this page.
+ * The portfolio "how it works" page. The architecture, flows, badges, and scaling story are
+ * all static — the live operational metrics live on the dashboard. The architecture
+ * annotations (`Annotation`) are always visible, adding system-design context inline.
  */
 export default function HowItWorksPage() {
   return (
@@ -20,8 +18,9 @@ export default function HowItWorksPage() {
           How LinkShrink works
         </h1>
         <p className={styles.subtitle} id="how-it-works-subtitle">
-          A look under the hood — the services, the request flows, and the choices behind them.
-          Turn on Educational Mode in the header to reveal deeper annotations throughout the app.
+          A peek under the hood at the services, the request flows, and the choices behind them.
+          Keep an eye out for the System Design Notes scattered throughout for the reasoning behind
+          each piece.
         </p>
       </header>
 
@@ -64,6 +63,11 @@ export default function HowItWorksPage() {
         </h2>
         <SystemFlows />
         <div className={styles.annotations} id="how-it-works-flows-annotations">
+          <Annotation id="annotation-url-validation" title="URL validation &amp; SSRF guard">
+            Before a link is created the destination is checked: only http and https, at most 2048
+            characters, and the host is resolved and rejected if it points at a private, loopback, or
+            link-local address. That keeps the shortener from being used to probe internal services.
+          </Annotation>
           <Annotation id="annotation-redirect-flow" title="Redirect flow">
             Every short code is a single indexed lookup. A cache hit returns a 302 immediately; a
             miss falls back to PostgreSQL, warms the cache, and still returns in milliseconds. The
@@ -77,7 +81,7 @@ export default function HowItWorksPage() {
             and, after three attempts, moved to a dead-letter queue.
           </Annotation>
           <Annotation id="annotation-rate-limiting" title="Rate limiting">
-            Link creation is capped per IP with fixed-window counters in Redis — 10 per minute and
+            Link creation is capped per IP with fixed-window counters in Redis, at 10 per minute and
             100 per day. Each check is a single increment with an expiry, so it adds no database
             load. Reads (the dashboard and redirects) are never throttled.
           </Annotation>
@@ -98,7 +102,7 @@ export default function HowItWorksPage() {
         <TechBadgeGrid />
         <Annotation id="annotation-qr-generation" title="QR generation">
           QR codes are rendered on demand from the short URL with error-correction level M, as PNG or
-          SVG. They are never stored — the image is deterministic per code, so it is cached at the
+          SVG. They are never stored. The image is deterministic per code, so it is cached at the
           edge with a long, immutable Cache-Control header instead.
         </Annotation>
       </section>
@@ -112,17 +116,6 @@ export default function HowItWorksPage() {
           Scaling story
         </h2>
         <ScalingStory />
-      </section>
-
-      <section
-        className={styles.section}
-        id="how-it-works-metrics"
-        aria-labelledby="how-it-works-metrics-title"
-      >
-        <h2 className={styles.sectionTitle} id="how-it-works-metrics-title">
-          Live operational metrics
-        </h2>
-        <LiveMetricsPanel />
       </section>
     </div>
   );

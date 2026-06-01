@@ -70,6 +70,7 @@ export interface MetricsResponse {
   cache_misses: number;
   cache_hit_ratio: number;
   total_redirects: number;
+  average_redirect_latency_ms: number | null;
   queue_pending: number;
   queue_stream_length: number;
   worker_healthy: boolean;

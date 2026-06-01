@@ -22,12 +22,10 @@
   padding: var(--space-4);
   text-align: center;
   background-color: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
+  /* Every node uses the full-strength accent outline (the Nginx style) so the whole
+     diagram reads consistently. */
+  border: 1px solid var(--color-accent);
   border-radius: var(--radius-medium);
-}
-
-.nodeAccent {
-  border-color: var(--color-accent);
 }
 
 .nodeTitle {

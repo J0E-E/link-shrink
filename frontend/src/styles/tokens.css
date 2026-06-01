@@ -17,6 +17,7 @@
   --color-accent-strong: #9333ea;
   --color-success: #22c55e;
   --color-warning: #f5b54a;
+  --color-danger: #ef4444;
 
   /* Typography */
   --font-family-base: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;

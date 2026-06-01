@@ -11,7 +11,12 @@ export default function TechBadgeGrid() {
     <ul className={styles.grid} id="tech-badge-grid">
       {TECH_BADGES.map((badge) => (
         <li className={styles.card} id={`${badge.id}-card`} key={badge.id}>
-          <TechBadge id={badge.id} label={badge.label} />
+          <TechBadge
+            id={badge.id}
+            label={badge.label}
+            icon={badge.icon}
+            iconImage={badge.iconImage}
+          />
           <p className={styles.explanation} id={`${badge.id}-explanation`}>
             {badge.explanation}
           </p>

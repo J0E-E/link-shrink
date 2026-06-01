@@ -11,6 +11,14 @@ function describeWorkerHeartbeat(metrics: MetricsResponse): string {
   return `Heartbeat ${Math.round(metrics.worker_heartbeat_age_seconds)}s ago`;
 }
 
+/** Format the average redirect latency, showing a dash until any redirect has been served. */
+function formatRedirectLatency(averageMilliseconds: number | null): string {
+  if (averageMilliseconds === null) {
+    return "—";
+  }
+  return `${averageMilliseconds.toFixed(2)} ms`;
+}
+
 /**
  * The live operational metrics panel — the only part of the How-It-Works page that is not
  * static. It reads `/api/metrics` via `useLiveMetrics` (polled every 10s) and shows the
@@ -24,7 +32,8 @@ export default function LiveMetricsPanel() {
       <div className={styles.panelHeader} id="live-metrics-header">
         <p className={styles.caption} id="live-metrics-caption">
           Live from <code id="live-metrics-endpoint">/api/metrics</code>, refreshed every 10
-          seconds. Redirect latency is measured at the proxy and is not exposed here.
+          seconds. Average redirect time is measured in the app and excludes proxy and network
+          time; the p95 budget is measured at Nginx during load testing.
         </p>
         <span className={styles.refreshStatus} id="live-metrics-refresh-status" aria-hidden="true">
           {status === "success" && isRefreshing ? "Refreshing…" : ""}
@@ -68,16 +77,10 @@ export default function LiveMetricsPanel() {
             value={metrics.total_redirects.toLocaleString()}
           />
           <MetricStat
-            id="live-metric-queue-pending"
-            label="Queue backlog"
-            value={metrics.queue_pending.toLocaleString()}
-            hint="Delivered but not yet processed"
-          />
-          <MetricStat
-            id="live-metric-queue-stream-length"
-            label="Queue volume"
-            value={metrics.queue_stream_length.toLocaleString()}
-            hint="Recent clicks retained in the stream"
+            id="live-metric-avg-redirect-latency"
+            label="Avg redirect time"
+            value={formatRedirectLatency(metrics.average_redirect_latency_ms)}
+            hint="App-side, excludes proxy"
           />
           <MetricStat
             id="live-metric-worker-health"

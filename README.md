@@ -189,8 +189,10 @@ a hard pass/fail check.
 ## Operational metrics
 
 `GET /api/metrics` returns live operational numbers derived from Redis counters that the
-Redirect service and Worker maintain. The shape is intentionally minimal — eight fields,
-no latency histogram (latency is measured at Nginx, not kept in Redis):
+Redirect service and Worker maintain. The shape is intentionally minimal — nine fields,
+no latency histogram. The average redirect time is an app-side mean (a latency sum kept in
+Redis, divided by the served-redirect count); the `< 50 ms p95` budget is still measured at
+Nginx during load testing, since a sum can't yield true percentiles:
 
 | Field | Meaning |
 |---|---|
@@ -198,6 +200,7 @@ no latency histogram (latency is measured at Nginx, not kept in Redis):
 | `cache_misses` | Redirect cache misses that fell through to PostgreSQL. |
 | `cache_hit_ratio` | `cache_hits / (cache_hits + cache_misses)`, or `0.0` with no lookups. |
 | `total_redirects` | Total `302`s served — the throughput counter. |
+| `average_redirect_latency_ms` | Mean redirect handler time in ms (app-side, excludes proxy/network), or `null` with no traffic. |
 | `queue_pending` | Real unprocessed analytics backlog (consumer-group PEL size). |
 | `queue_stream_length` | Recent click-stream entries (capped via `MAXLEN ~`; a volume gauge, not backlog). |
 | `worker_healthy` | `true` when the worker heartbeat is ≤ 15 s old. |

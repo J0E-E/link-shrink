@@ -13,6 +13,6 @@ export interface NavigationItem {
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
   { path: "/", label: "Home", id: "nav-item-home" },
-  { path: "/dashboard", label: "Dashboard", id: "nav-item-dashboard" },
+  { path: "/dashboard", label: "Analytics", id: "nav-item-dashboard" },
   { path: "/how-it-works", label: "How It Works", id: "nav-item-how-it-works" },
 ];

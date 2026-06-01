@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import { useEducationalMode } from "../../education/EducationalModeContext";
 import styles from "./Annotation.module.css";
 
 interface AnnotationProps {
@@ -16,23 +15,17 @@ interface AnnotationProps {
 }
 
 /**
- * An educational callout that renders only when Educational Mode is on. This is the single
- * gate for every architecture annotation in the app — dropping one anywhere adds context
- * that appears and disappears with the global header toggle.
+ * An always-visible system design callout. This is the single building block for every
+ * architecture annotation in the app — dropping one anywhere adds explanatory context about
+ * the choices behind that piece of the system.
  */
 export default function Annotation({ id, title, headingLevel = 3, children }: AnnotationProps) {
-  const { isEducationalModeOn } = useEducationalMode();
-
-  if (!isEducationalModeOn) {
-    return null;
-  }
-
   const TitleHeading = headingLevel === 2 ? "h2" : "h3";
 
   return (
     <aside className={styles.annotation} id={id} role="note" aria-labelledby={`${id}-title`}>
       <span className={styles.label} id={`${id}-label`} aria-hidden="true">
-        🎓 Educational
+        🎓 System Design Note
       </span>
       <TitleHeading className={styles.title} id={`${id}-title`}>
         {title}

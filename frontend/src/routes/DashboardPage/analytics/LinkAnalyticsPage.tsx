@@ -39,7 +39,7 @@ export default function LinkAnalyticsPage() {
     <section className={styles.page} id="analytics-page" aria-labelledby="analytics-page-title">
       <div className={styles.topRow} id="analytics-top-row">
         <Link className={styles.backLink} id="analytics-back-link" to="/dashboard">
-          ← Back to dashboard
+          ← Back to analytics
         </Link>
         <h1 className={styles.title} id="analytics-page-title">
           Analytics for /{code}
@@ -58,7 +58,7 @@ export default function LinkAnalyticsPage() {
             No link found for <strong id="analytics-not-found-code">/{code}</strong>.
           </p>
           <Link className={styles.noticeLink} id="analytics-not-found-link" to="/dashboard">
-            Back to dashboard
+            Back to analytics
           </Link>
         </div>
       )}
@@ -81,10 +81,11 @@ export default function LinkAnalyticsPage() {
 
       {status === "success" && link && analytics && (
         <div className={styles.content} id="analytics-content">
-          <AnalyticsHeader link={link} />
-
           <div className={styles.summaryRow} id="analytics-summary-row">
-            <TotalClicks totalClicks={analytics.total_clicks} />
+            <div className={styles.identityColumn} id="analytics-identity-column">
+              <AnalyticsHeader link={link} />
+              <TotalClicks totalClicks={analytics.total_clicks} />
+            </div>
             <div className={styles.qrCard} id="analytics-qr-card">
               <QrPanel shortCode={link.short_code} />
             </div>

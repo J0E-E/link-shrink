@@ -161,23 +161,26 @@ class HealthResponse(BaseModel):
 class MetricsResponse(BaseModel):
     """200 body for ``GET /api/metrics`` — live operational numbers (§5.7).
 
-    **This 8-field shape is finalized (Epic 20)** — it covers the §5.7 set (cache hit ratio,
-    queue depth, total redirects / throughput) plus worker liveness. ``total_redirects`` is
-    the throughput counter; there is intentionally **no p95 latency field** — the redirect
-    ``< 50 ms p95`` budget is measured server-side at Nginx via ``$request_time`` during load
-    testing (§9.10), not exposed here, because Redis keeps no latency histogram (§5.7).
+    Covers the §5.7 set (cache hit ratio, queue depth, total redirects / throughput) plus
+    worker liveness and an app-side average redirect latency. ``average_redirect_latency_ms``
+    is the redirect handler's mean wall-clock time (latency sum / served redirects), so it
+    excludes proxy/network time; the redirect ``< 50 ms p95`` budget is still measured
+    server-side at Nginx via ``$request_time`` during load testing (§9.10), since Redis keeps
+    a running sum, not a latency histogram, and so cannot give true percentiles live.
 
     Derived from Redis counters the redirect service and worker write, so the values are
-    all zero until traffic flows. ``cache_hit_ratio`` is ``0.0`` when there have been no
-    lookups; ``queue_pending`` is the real unprocessed backlog (PEL size) while
-    ``queue_stream_length`` is the total recent stream entries (capped, not backlog);
-    ``worker_heartbeat_age_seconds`` is ``None`` when the worker has never written a heartbeat.
+    all zero until traffic flows. ``cache_hit_ratio`` is ``0.0`` and
+    ``average_redirect_latency_ms`` is ``None`` when there has been no traffic; ``queue_pending``
+    is the real unprocessed backlog (PEL size) while ``queue_stream_length`` is the total recent
+    stream entries (capped, not backlog); ``worker_heartbeat_age_seconds`` is ``None`` when the
+    worker has never written a heartbeat.
     """
 
     cache_hits: int
     cache_misses: int
     cache_hit_ratio: float
     total_redirects: int
+    average_redirect_latency_ms: float | None
     queue_pending: int
     queue_stream_length: int
     worker_healthy: bool

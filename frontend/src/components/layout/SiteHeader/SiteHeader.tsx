@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 
 import SiteNav from "../SiteNav/SiteNav";
 import MobileNavToggle from "../MobileNavToggle/MobileNavToggle";
-import EducationalModeToggle from "../EducationalModeToggle/EducationalModeToggle";
 import styles from "./SiteHeader.module.css";
 
 const MOBILE_NAV_ID = "site-nav";
@@ -30,8 +29,6 @@ export default function SiteHeader() {
             LinkShrink
           </span>
         </Link>
-
-        <EducationalModeToggle />
 
         <MobileNavToggle
           isOpen={isMobileNavOpen}

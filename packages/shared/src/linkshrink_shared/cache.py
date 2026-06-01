@@ -185,6 +185,12 @@ METRICS_CACHE_HIT_KEY = "metrics:cache:hit"
 METRICS_CACHE_MISS_KEY = "metrics:cache:miss"
 METRICS_REDIRECTS_TOTAL_KEY = "metrics:redirects:total"
 
+#: Running sum of per-redirect handler latency in microseconds. Paired with
+#: ``METRICS_REDIRECTS_TOTAL_KEY`` so the metrics endpoint can derive an average latency
+#: (sum / count) without keeping a full histogram — an app-side number that excludes
+#: proxy/network time (the Nginx ``$request_time`` p95 stays the load-test measure).
+METRICS_REDIRECTS_LATENCY_US_KEY = "metrics:redirects:latency_us:total"
+
 
 async def increment_cache_hit(redis: Redis) -> None:
     """Count one redirect cache hit."""
@@ -196,9 +202,17 @@ async def increment_cache_miss(redis: Redis) -> None:
     await redis.incr(METRICS_CACHE_MISS_KEY)
 
 
-async def increment_redirects_total(redis: Redis) -> None:
-    """Count one served redirect."""
-    await redis.incr(METRICS_REDIRECTS_TOTAL_KEY)
+async def record_redirect(redis: Redis, latency_us: int) -> None:
+    """Count one served redirect and add its handler latency to the running sum.
+
+    Both counters move together in a single pipeline so the served-redirect total and the
+    latency sum can never drift apart — that keeps ``latency_sum / total`` an honest
+    average. ``latency_us`` is the redirect handler's wall-clock time in microseconds.
+    """
+    async with redis.pipeline(transaction=True) as pipe:
+        pipe.incr(METRICS_REDIRECTS_TOTAL_KEY)
+        pipe.incrby(METRICS_REDIRECTS_LATENCY_US_KEY, max(0, latency_us))
+        await pipe.execute()
 
 
 async def read_counter(redis: Redis, key: str) -> int:

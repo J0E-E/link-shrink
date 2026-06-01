@@ -19,6 +19,7 @@ from redis.asyncio import Redis
 from linkshrink_shared import (
     METRICS_CACHE_HIT_KEY,
     METRICS_CACHE_MISS_KEY,
+    METRICS_REDIRECTS_LATENCY_US_KEY,
     METRICS_REDIRECTS_TOTAL_KEY,
     WORKER_HEARTBEAT_STALE_SECONDS,
     pending_count,
@@ -30,6 +31,12 @@ from linkshrink_shared import (
 #: Decimal places the cache hit ratio is rounded to for a clean payload.
 HIT_RATIO_PRECISION = 4
 
+#: Decimal places the average redirect latency (milliseconds) is rounded to.
+LATENCY_MS_PRECISION = 2
+
+#: Microseconds per millisecond — the latency sum is stored in µs, reported in ms.
+MICROSECONDS_PER_MILLISECOND = 1000
+
 
 @dataclass(frozen=True)
 class MetricsSnapshot:
@@ -39,6 +46,7 @@ class MetricsSnapshot:
     cache_misses: int
     cache_hit_ratio: float
     total_redirects: int
+    average_redirect_latency_ms: float | None
     queue_pending: int
     queue_stream_length: int
     worker_healthy: bool
@@ -56,6 +64,7 @@ async def collect_metrics(redis: Redis, *, now: float | None = None) -> MetricsS
     cache_hits = await read_counter(redis, METRICS_CACHE_HIT_KEY)
     cache_misses = await read_counter(redis, METRICS_CACHE_MISS_KEY)
     total_redirects = await read_counter(redis, METRICS_REDIRECTS_TOTAL_KEY)
+    redirect_latency_us = await read_counter(redis, METRICS_REDIRECTS_LATENCY_US_KEY)
     queue_pending = await pending_count(redis)
     queue_stream_length = await stream_length(redis)
     heartbeat = await read_heartbeat(redis)
@@ -63,6 +72,17 @@ async def collect_metrics(redis: Redis, *, now: float | None = None) -> MetricsS
     total_lookups = cache_hits + cache_misses
     cache_hit_ratio = (
         round(cache_hits / total_lookups, HIT_RATIO_PRECISION) if total_lookups else 0.0
+    )
+
+    # Average over the served redirects. ``None`` (not 0.0) until traffic flows, so the UI
+    # can show a dash rather than a misleading "0 ms". App-side measure (excludes proxy).
+    average_redirect_latency_ms = (
+        round(
+            redirect_latency_us / total_redirects / MICROSECONDS_PER_MILLISECOND,
+            LATENCY_MS_PRECISION,
+        )
+        if total_redirects
+        else None
     )
 
     # ``max(0.0, ...)`` guards against clock skew between the worker (which writes the
@@ -75,6 +95,7 @@ async def collect_metrics(redis: Redis, *, now: float | None = None) -> MetricsS
         cache_misses=cache_misses,
         cache_hit_ratio=cache_hit_ratio,
         total_redirects=total_redirects,
+        average_redirect_latency_ms=average_redirect_latency_ms,
         queue_pending=queue_pending,
         queue_stream_length=queue_stream_length,
         worker_healthy=worker_healthy,

@@ -72,7 +72,7 @@ export default function AdvancedOptions({
               </p>
             ) : (
               <p className={styles.hint} id="alias-hint">
-                3–32 characters: lowercase letters, numbers, and hyphens.
+                3 to 32 characters: lowercase letters, numbers, and hyphens.
               </p>
             )}
           </div>

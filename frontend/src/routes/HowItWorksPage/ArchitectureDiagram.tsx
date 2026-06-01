@@ -9,7 +9,7 @@ export default function ArchitectureDiagram() {
   return (
     <div className={styles.diagram} id="architecture-diagram">
       <div className={styles.tier} id="architecture-tier-proxy">
-        <div className={`${styles.node} ${styles.nodeAccent}`} id="architecture-node-nginx">
+        <div className={styles.node} id="architecture-node-nginx">
           <span className={styles.nodeTitle} id="architecture-node-nginx-title">
             Nginx
           </span>

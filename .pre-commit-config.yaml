@@ -1,0 +1,39 @@
+# Local pre-commit hooks: backend (ruff + full pytest) and frontend (eslint + tsc),
+# mirroring CI (.github/workflows/tests.yml) plus the frontend's own gates.
+# One-time setup:  pip install -r requirements-dev.txt && pre-commit install   (or `make hooks`)
+#
+# The backend hooks resolve the project virtualenv's Python explicitly (.venv/Scripts on
+# Windows, .venv/bin on Unix) so they work whether or not the venv is activated when git
+# runs the hook — git launches hooks with a bare PATH where `ruff` is absent and `pytest`
+# may point at a system Python that lacks the project's editable packages. If no .venv is
+# found we fall back to whatever `python` is on PATH.
+repos:
+  - repo: local
+    hooks:
+      # --- Backend ---
+      - id: ruff
+        name: ruff check (backend)
+        entry: bash -c 'if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=python; fi; "$PY" -m ruff check .'
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+      - id: pytest
+        name: pytest (backend, full suite)
+        entry: bash -c 'if [ -x .venv/Scripts/python.exe ]; then PY=.venv/Scripts/python.exe; elif [ -x .venv/bin/python ]; then PY=.venv/bin/python; else PY=python; fi; "$PY" -m pytest'
+        language: system
+        pass_filenames: false
+        always_run: true
+      # --- Frontend ---
+      - id: frontend-eslint
+        name: eslint (frontend)
+        entry: bash -c 'cd frontend && npm run lint'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+      - id: frontend-typecheck
+        name: tsc type-check (frontend)
+        entry: bash -c 'cd frontend && npx tsc -b'
+        language: system
+        files: ^frontend/
+        pass_filenames: false

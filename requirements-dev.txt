@@ -2,9 +2,11 @@
 # Install after the shared package:
 #   pip install -e packages/shared
 #   pip install -r requirements-dev.txt
+# Then install the git pre-commit hook once:  make hooks
 ruff
 pytest
 pytest-asyncio
+pre-commit                       # git pre-commit hooks (backend + frontend gates); run `make hooks` once
 alembic                          # used from Epic 2 (migrations)
 testcontainers[postgres,redis]   # used from Epic 5/6 (integration tests)
 httpx                            # used from Epic 6 (async API test client)

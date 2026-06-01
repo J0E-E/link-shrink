@@ -119,10 +119,15 @@ linkshrink/
 │   ├── docker/                  # base image(s) for the Python services
 │   └── loadtest/                # p95 load-test harness + procedure
 ├── pyproject.toml               # tooling config (ruff, pytest)
-└── requirements-dev.txt         # dev / tooling dependencies
+├── requirements-dev.txt         # dev / tooling dependencies
+└── .pre-commit-config.yaml      # pre-commit hooks: ruff + pytest (backend), eslint + tsc (frontend)
 ```
 
 Alembic owns the schema; services never auto-create tables.
+
+After `pip install -r requirements-dev.txt`, run `make hooks` once to install the git
+pre-commit hook. It runs the backend gates (`ruff` + full `pytest`) and the frontend gates
+(`eslint` + `tsc` type-check) before each commit, matching CI.
 
 ---
 

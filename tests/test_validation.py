@@ -293,5 +293,5 @@ def test_proxy_served_paths_have_no_dotted_entries():
 
 def test_proxy_served_paths_expected_contents():
     assert proxy_served_paths() == frozenset(
-        {"api", "health", "metrics", "assets", "static", "dashboard", "how-it-works"}
+        {"api", "health", "metrics", "assets", "images", "static", "dashboard", "how-it-works"}
     )

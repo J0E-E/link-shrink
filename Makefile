@@ -10,7 +10,7 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 BASE_IMAGE := linkshrink-base
 BASE_DOCKERFILE := infra/docker/python-base.Dockerfile
 
-.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean test lint loadtest
+.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean test lint hooks loadtest
 
 # Run the full test suite (unit + Testcontainers integration). Needs Docker running for
 # the container-backed tests; without Docker those skip and the suite still passes. This
@@ -21,6 +21,12 @@ test:
 # Lint the whole repo.
 lint:
 	ruff check .
+
+# Install the git pre-commit hook. It runs the backend gates (ruff + full pytest) and the
+# frontend gates (eslint + tsc type-check) before each commit — see .pre-commit-config.yaml.
+# Run once after `pip install -r requirements-dev.txt`.
+hooks:
+	pre-commit install
 
 # Build the shared Epic 1 base image the service Dockerfiles extend.
 base:

@@ -5,6 +5,7 @@ import AppShell from "./components/layout/AppShell/AppShell";
 import HomePage from "./routes/HomePage/HomePage";
 import DashboardPage from "./routes/DashboardPage/DashboardPage";
 import HowItWorksPage from "./routes/HowItWorksPage/HowItWorksPage";
+import HowIWorkPage from "./routes/HowIWorkPage/HowIWorkPage";
 
 // The analytics view pulls in the charting library; lazy-load it so the home and dashboard
 // routes don't carry that weight in the initial bundle.
@@ -36,6 +37,7 @@ export default function App() {
           }
         />
         <Route path="/how-it-works" element={<HowItWorksPage />} />
+        <Route path="/how-i-work" element={<HowIWorkPage />} />
       </Route>
     </Routes>
   );

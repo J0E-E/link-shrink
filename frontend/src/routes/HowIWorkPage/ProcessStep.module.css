@@ -1,0 +1,134 @@
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  /* Reveal-on-scroll starting state: a gentle slide up only, never faded out. */
+  transform: translateY(18px);
+  transition: transform 500ms ease;
+}
+
+.stepVisible {
+  transform: translateY(0);
+}
+
+.marker {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  color: var(--color-text);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-background);
+  transition: box-shadow var(--transition-base);
+}
+
+.stepVisible .marker {
+  box-shadow:
+    0 0 0 4px var(--color-background),
+    0 0 16px rgba(168, 85, 247, 0.5);
+}
+
+.markerNumber {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-accent);
+  letter-spacing: 0.02em;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+  transition:
+    border-color var(--transition-base),
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.card:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.icon {
+  font-size: var(--font-size-large);
+  line-height: 1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--color-accent);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.title {
+  font-size: var(--font-size-large);
+  font-weight: 600;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.detail {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-base);
+}
+
+@media (max-width: 640px) {
+  .step {
+    grid-template-columns: auto 1fr;
+    gap: var(--space-3);
+  }
+
+  .marker {
+    width: 36px;
+    height: 36px;
+  }
+
+  .card {
+    padding: var(--space-4);
+  }
+
+  .title {
+    font-size: var(--font-size-base);
+  }
+
+  .detail {
+    font-size: var(--font-size-small);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step {
+    transform: none;
+    transition: none;
+  }
+
+  .card:hover {
+    transform: none;
+  }
+}

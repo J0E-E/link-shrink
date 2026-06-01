@@ -1,0 +1,163 @@
+.spotlight {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  border-radius: var(--radius-large);
+  background:
+    radial-gradient(120% 140% at 0% 0%, rgba(168, 85, 247, 0.14), transparent 60%),
+    var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+/* A soft accent strip along the top edge to set this section apart from the plain cards. */
+.spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-accent) 30%,
+    var(--color-accent-strong) 70%,
+    transparent
+  );
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.eyebrow {
+  align-self: flex-start;
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.lead {
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+  max-width: 760px;
+}
+
+.lead em {
+  color: var(--color-accent);
+  font-style: normal;
+}
+
+.loop {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.phase {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  /* Each phase brightens in turn; staggered animation-delay is set inline per item. */
+  animation: phasePulse 4.5s ease-in-out infinite;
+}
+
+/* A connecting arrow between phases, hinting at the repeating loop. */
+.phase:not(:last-child)::after {
+  content: "→";
+  margin-left: var(--space-2);
+  color: var(--color-text-secondary);
+  opacity: 0.6;
+}
+
+.phaseIcon {
+  font-size: var(--font-size-base);
+  line-height: 1;
+}
+
+.phaseLabel {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+}
+
+@keyframes phasePulse {
+  0%,
+  28% {
+    color: var(--color-text);
+    border-color: var(--color-accent);
+    background-color: var(--color-surface-raised);
+    box-shadow: 0 0 18px rgba(168, 85, 247, 0.45);
+    transform: translateY(-2px);
+  }
+  34%,
+  100% {
+    color: var(--color-text-secondary);
+    border-color: var(--color-border);
+    box-shadow: none;
+    transform: translateY(0);
+  }
+}
+
+.checks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background-color: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.checkTitle {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.checkDetail {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .spotlight {
+    padding: var(--space-5);
+  }
+
+  .lead {
+    font-size: var(--font-size-base);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phase {
+    animation: none;
+    /* Settle on the highlighted look so the loop still reads as the focal point. */
+    color: var(--color-text);
+    border-color: var(--color-accent);
+  }
+}

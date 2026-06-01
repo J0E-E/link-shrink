@@ -41,6 +41,7 @@ RESERVED_WORDS: frozenset[str] = frozenset(
         "api",
         "dashboard",
         "how-it-works",
+        "how-i-work",
         "health",
         "metrics",
         "assets",

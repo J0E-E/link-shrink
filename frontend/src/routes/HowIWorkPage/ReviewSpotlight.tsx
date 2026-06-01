@@ -4,38 +4,16 @@ import styles from "./ReviewSpotlight.module.css";
 const REVIEW_PHASES = [
   { id: "review-phase-review", label: "Review", icon: "🔍" },
   { id: "review-phase-tailor", label: "Tailor", icon: "✏️" },
-  { id: "review-phase-rerun", label: "Re-run", icon: "🔁" },
-];
-
-/** What every epic's code review actually checks before it's allowed to merge. */
-const REVIEW_CHECKS = [
-  {
-    id: "review-check-deliverables",
-    title: "Deliverables met",
-    detail: "Every planned task is satisfied, and nothing got quietly built differently.",
-  },
-  {
-    id: "review-check-correctness",
-    title: "Correctness & security",
-    detail: "Logic, edge cases, null handling, concurrency, injection, and leaked secrets.",
-  },
-  {
-    id: "review-check-architecture",
-    title: "Architecture & conventions",
-    detail: "Module boundaries, coupling, naming, and the project's own rules in CLAUDE.md.",
-  },
-  {
-    id: "review-check-tests",
-    title: "Tests",
-    detail: "Coverage for each verification step, with the suite actually passing.",
-  },
+  { id: "review-phase-execute", label: "Execute", icon: "⚙️" },
+  { id: "review-phase-validate", label: "Validate", icon: "✅" },
+  { id: "review-phase-repeat", label: "Rinse & repeat", icon: "🔁" },
 ];
 
 /**
  * The highlighted closing section: the part of the process that gets the most attention isn't
  * writing code, it's reviewing and tailoring what the agents produce. A small looping visual
- * cycles Review → Tailor → Re-run, and the grid spells out what every review checks. The loop
- * animation pauses for users who prefer reduced motion.
+ * cycles Review → Tailor → Execute → Validate → Rinse & repeat, centered as the focal point. The
+ * loop animation pauses for users who prefer reduced motion.
  */
 export default function ReviewSpotlight() {
   return (
@@ -58,7 +36,7 @@ export default function ReviewSpotlight() {
             className={styles.phase}
             id={phase.id}
             key={phase.id}
-            style={{ animationDelay: `${index * 1.5}s` }}
+            style={{ animationDelay: `${index * 1.2}s` }}
           >
             <span className={styles.phaseIcon} id={`${phase.id}-icon`} aria-hidden="true">
               {phase.icon}
@@ -69,19 +47,6 @@ export default function ReviewSpotlight() {
           </li>
         ))}
       </ol>
-
-      <ul className={styles.checks} id="review-spotlight-checks">
-        {REVIEW_CHECKS.map((check) => (
-          <li className={styles.check} id={check.id} key={check.id}>
-            <h3 className={styles.checkTitle} id={`${check.id}-title`}>
-              {check.title}
-            </h3>
-            <p className={styles.checkDetail} id={`${check.id}-detail`}>
-              {check.detail}
-            </p>
-          </li>
-        ))}
-      </ul>
     </div>
   );
 }

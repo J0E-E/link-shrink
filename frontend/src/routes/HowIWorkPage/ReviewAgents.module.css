@@ -1,0 +1,57 @@
+.agents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.lead {
+  font-size: var(--font-size-large);
+  color: var(--color-text);
+  max-width: 760px;
+}
+
+.lead code {
+  font-size: 0.9em;
+  padding: 0.1em 0.4em;
+  border-radius: var(--radius-small);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-accent);
+  white-space: nowrap;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.agent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-medium);
+}
+
+.agentTitle {
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.agentDetail {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 640px) {
+  .lead {
+    font-size: var(--font-size-base);
+  }
+}

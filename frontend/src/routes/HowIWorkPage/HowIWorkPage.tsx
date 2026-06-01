@@ -1,6 +1,7 @@
 import Annotation from "../../components/Annotation/Annotation";
 import ProcessTimeline from "./ProcessTimeline";
 import ReviewSpotlight from "./ReviewSpotlight";
+import ReviewAgents from "./ReviewAgents";
 import styles from "./HowIWorkPage.module.css";
 
 /**
@@ -17,10 +18,10 @@ export default function HowIWorkPage() {
           How I work
         </h1>
         <p className={styles.subtitle} id="how-i-work-subtitle">
-          Plot twist: I don&apos;t write any of the code. Not one line. My job is the thinking. I pin
-          the design down on paper, slice it into bite-sized epics, and review every step so that by
-          the time the agents start typing, I already know they&apos;ll deliver. Then I trust, but
-          verify, with my own two eyes.
+          Now that cranking out code is something agents do in seconds, what&apos;s left is the
+          part that always mattered: the design. I spend my time there, on the plan and the review,
+          so the agents only ever fill in details I&apos;ve already decided. Nothing ships until
+          I&apos;ve checked it against the plan.
         </p>
       </header>
 
@@ -49,6 +50,21 @@ export default function HowIWorkPage() {
           Where the real work happens
         </h2>
         <ReviewSpotlight />
+      </section>
+
+      <section
+        className={styles.section}
+        id="how-i-work-agents"
+        aria-labelledby="how-i-work-agents-title"
+      >
+        <h2 className={styles.sectionTitle} id="how-i-work-agents-title">
+          How the review is split across agents
+        </h2>
+        <p className={styles.sectionLead} id="how-i-work-agents-lead">
+          One review, many sets of eyes. The work is divided so each agent owns a single lens and
+          looks for nothing else — which is exactly what makes the pass thorough.
+        </p>
+        <ReviewAgents />
       </section>
 
       <Annotation id="how-i-work-annotation" title="This site is the receipts" headingLevel={2}>

@@ -18,7 +18,7 @@ export default function PortfolioBlurb() {
         ✦ About this project
       </span>
       <h2 className={styles.title} id="home-portfolio-blurb-title">
-        A portfolio piece, not just a toy
+        How I actually build software
       </h2>
       <p className={styles.body} id="home-portfolio-blurb-body">
         LinkShrink is a working demo of how I design and ship software with an AI-assisted

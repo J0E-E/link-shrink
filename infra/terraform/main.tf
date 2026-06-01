@@ -6,3 +6,6 @@
 #   - eip.tf        the stable Elastic IP (imported) + association
 #   - dns.tf        the Route 53 zone (imported) + apex A record
 #   - ecr.tf        the container image repositories + lifecycle policies
+#   - codebuild.tf  the build + deploy CodeBuild projects (CI/CD)
+#   - codepipeline.tf  the pipeline, artifact bucket, and GitHub connection
+#   - iam-ci.tf     the build/deploy/pipeline IAM roles

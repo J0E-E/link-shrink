@@ -40,3 +40,18 @@ output "ecr_repository_urls" {
   description = "Map of service name to its ECR repository URL (for image push/pull)."
   value       = { for name, repo in aws_ecr_repository.app : name => repo.repository_url }
 }
+
+output "codepipeline_name" {
+  description = "Name of the CI/CD pipeline."
+  value       = aws_codepipeline.main.name
+}
+
+output "codestar_connection_arn" {
+  description = "GitHub connection ARN — authorize it once in the console (Developer Tools > Connections)."
+  value       = aws_codestarconnections_connection.github.arn
+}
+
+output "artifact_bucket" {
+  description = "S3 bucket holding CodePipeline artifacts."
+  value       = aws_s3_bucket.artifacts.bucket
+}

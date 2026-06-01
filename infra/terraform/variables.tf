@@ -54,3 +54,27 @@ variable "ecr_untagged_expire_days" {
   type        = number
   default     = 14
 }
+
+variable "github_repository" {
+  description = "GitHub repo the pipeline builds from, as owner/name."
+  type        = string
+  default     = "J0E-E/link-shrink"
+}
+
+variable "github_branch" {
+  description = "Branch that triggers the pipeline."
+  type        = string
+  default     = "main"
+}
+
+variable "codebuild_image" {
+  description = "CodeBuild managed image for the build and deploy projects."
+  type        = string
+  default     = "aws/codebuild/standard:7.0"
+}
+
+variable "artifact_expire_days" {
+  description = "Days after which CodePipeline artifacts are expired from S3."
+  type        = number
+  default     = 30
+}

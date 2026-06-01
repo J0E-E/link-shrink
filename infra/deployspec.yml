@@ -1,0 +1,64 @@
+# CodeBuild spec for the pipeline's Deploy stage (Epic 10).
+#
+# This does NOT build anything. It issues an SSM Run Command telling the host to
+# pull the just-built images and start the stack, then polls until the command
+# finishes so the pipeline reflects deploy success/failure.
+#
+# IMAGE_TAG is injected by the pipeline (the Build stage's exported variable).
+
+version: 0.2
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+
+phases:
+  build:
+    commands:
+      - set -e
+      # Resolve the app host by its Name tag.
+      - |
+        INSTANCE_ID=$(aws ec2 describe-instances --region "$AWS_REGION" \
+          --filters "Name=tag:Name,Values=linkshrink" "Name=instance-state-name,Values=running" \
+          --query "Reservations[0].Instances[0].InstanceId" --output text)
+      - test -n "$INSTANCE_ID" -a "$INSTANCE_ID" != "None"
+      - echo "Deploying $IMAGE_TAG to $INSTANCE_ID"
+      # Host script: ensure the repo at /opt/linkshrink, pin to the deployed SHA,
+      # then run the committed deploy script. IMAGE_TAG is baked in here.
+      - |
+        HOST_CMD="set -e
+        [ -d /opt/linkshrink/.git ] || git clone https://github.com/J0E-E/link-shrink.git /opt/linkshrink
+        cd /opt/linkshrink
+        git fetch --all --prune
+        git checkout --force $IMAGE_TAG
+        bash infra/deploy-on-host.sh $IMAGE_TAG"
+      - |
+        PARAMS=$(jq -n --arg c "$HOST_CMD" '{commands: [$c]}')
+      - |
+        CMD_ID=$(aws ssm send-command --region "$AWS_REGION" \
+          --instance-ids "$INSTANCE_ID" \
+          --document-name "AWS-RunShellScript" \
+          --comment "LinkShrink deploy $IMAGE_TAG" \
+          --timeout-seconds 900 \
+          --parameters "$PARAMS" \
+          --query "Command.CommandId" --output text)
+      - echo "SSM command id $CMD_ID"
+      # Poll until the host command reaches a terminal state.
+      - |
+        while true; do
+          STATUS=$(aws ssm get-command-invocation --region "$AWS_REGION" \
+            --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" \
+            --query Status --output text 2>/dev/null || echo Pending)
+          echo "SSM status: $STATUS"
+          case "$STATUS" in
+            Success) break ;;
+            Failed|Cancelled|TimedOut)
+              echo "=== host stdout ==="
+              aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query StandardOutputContent --output text || true
+              echo "=== host stderr ==="
+              aws ssm get-command-invocation --region "$AWS_REGION" --command-id "$CMD_ID" --instance-id "$INSTANCE_ID" --query StandardErrorContent --output text || true
+              exit 1 ;;
+          esac
+          sleep 10
+        done
+      - echo "Deploy of $IMAGE_TAG succeeded"

@@ -15,3 +15,9 @@ route53_zone_id   = "Z05112061FM24VGB8BNP9"  # link-shrink.org zone (managed in 
 # DNS / container registry (Epic 6, frontend-build added in Epic 7)
 ecr_repositories         = ["api", "redirect", "worker", "nginx", "migrate", "frontend-build"]
 ecr_untagged_expire_days = 14
+
+# CI/CD pipeline (Epics 8-10)
+github_repository    = "J0E-E/link-shrink"
+github_branch        = "main"
+codebuild_image      = "aws/codebuild/standard:7.0"
+artifact_expire_days = 30

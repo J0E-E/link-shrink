@@ -21,6 +21,23 @@ SERVICES=(api redirect worker migrate nginx frontend-build)
 echo "Registry: $ECR_REGISTRY"
 echo "Tag:      $IMAGE_TAG"
 
+# Repos are IMMUTABLE, so re-pushing an existing tag fails. If every image for
+# this tag already exists (e.g. a same-commit pipeline re-run), skip straight to
+# the deploy instead of erroring.
+already_pushed() {
+  for service in "${SERVICES[@]}"; do
+    aws ecr describe-images --region "$AWS_REGION" \
+      --repository-name "linkshrink-$service" \
+      --image-ids "imageTag=$IMAGE_TAG" >/dev/null 2>&1 || return 1
+  done
+  return 0
+}
+
+if already_pushed; then
+  echo "All six images already exist at tag $IMAGE_TAG — skipping build/push."
+  exit 0
+fi
+
 echo "Logging in to ECR..."
 aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin "$ECR_REGISTRY"

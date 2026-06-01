@@ -1,0 +1,53 @@
+# CodeBuild build spec for the LinkShrink pipeline (Epic 8).
+#
+# Runs the full test gate (backend + frontend), then builds the six images and
+# pushes them to ECR tagged by commit SHA. The tag is exported so the pipeline's
+# Deploy stage knows which version to roll out.
+#
+# Requires the project to run with privileged_mode = true so the in-image Docker
+# daemon can start (pytest uses Testcontainers; the image builds need Docker).
+
+version: 0.2
+
+env:
+  variables:
+    ECR_REGISTRY: "310199963650.dkr.ecr.us-east-1.amazonaws.com"
+    AWS_REGION: "us-east-1"
+    # The build container is ephemeral, so the Testcontainers reaper isn't needed.
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  exported-variables:
+    - IMAGE_TAG
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.12
+      nodejs: 20
+    commands:
+      # Start the in-image Docker daemon and wait until it answers.
+      - nohup /usr/local/bin/dockerd-entrypoint.sh >/tmp/dockerd.log 2>&1 || nohup dockerd >/tmp/dockerd.log 2>&1 &
+      - timeout 30 sh -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
+
+  pre_build:
+    commands:
+      # CODEBUILD_RESOLVED_SOURCE_VERSION is the full SHA CodePipeline checked out.
+      - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}"
+      - echo "Building tag $IMAGE_TAG"
+      - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
+      # Backend gate (mirrors .github/workflows/tests.yml).
+      - python -m pip install --upgrade pip
+      - pip install -e packages/shared -e services/api -e services/redirect -e services/worker
+      - pip install -r requirements-dev.txt
+      - ruff check .
+      - pytest
+      # Frontend gate.
+      - (cd frontend && npm ci && npm run lint && npx tsc -b)
+
+  build:
+    commands:
+      # Honors IMAGE_TAG / ECR_REGISTRY / AWS_REGION from the environment.
+      - bash infra/build-push.sh
+
+  post_build:
+    commands:
+      - echo "Built and pushed all images at tag $IMAGE_TAG"

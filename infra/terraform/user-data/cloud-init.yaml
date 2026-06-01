@@ -1,0 +1,50 @@
+#cloud-config
+# LinkShrink application host bootstrap.
+#
+# Installs Docker (with the Compose plugin) and the AWS CLI, then makes the SSM
+# shell user a member of the docker group as soon as it appears. ssm-user does not
+# exist at boot — SSM creates it on the first session — so a path unit watches for
+# it instead of running usermod blindly at boot (which would fail).
+
+write_files:
+  # Default region for any AWS CLI call made from the box.
+  - path: /etc/profile.d/aws-region.sh
+    permissions: "0644"
+    content: |
+      export AWS_DEFAULT_REGION=${aws_region}
+
+  # Oneshot that adds ssm-user to the docker group (idempotent).
+  - path: /etc/systemd/system/linkshrink-ssm-docker.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Add ssm-user to the docker group once it exists
+      After=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/sbin/usermod -aG docker ssm-user
+
+  # Path unit that runs the oneshot above the moment ssm-user's home appears.
+  - path: /etc/systemd/system/linkshrink-ssm-docker.path
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Watch for ssm-user, then add it to the docker group
+
+      [Path]
+      PathExists=/home/ssm-user
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+  - sh /tmp/get-docker.sh
+  - snap install aws-cli --classic
+  - systemctl enable --now docker
+  - systemctl daemon-reload
+  - systemctl enable --now linkshrink-ssm-docker.path
+  # Sentinel the runbook can poll to know bootstrap finished.
+  - mkdir -p /var/lib/linkshrink
+  - touch /var/lib/linkshrink/bootstrap-complete

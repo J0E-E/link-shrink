@@ -1,7 +1,17 @@
 # Sample variable values. Copy to terraform.tfvars (untracked) and adjust only if
-# you need to override a default. Every value below already matches the defaults
-# in variables.tf, so an empty/absent tfvars works just as well for Epic 4.
+# you need to override a default. Every value below already matches the defaults in
+# variables.tf, so an empty/absent tfvars works just as well.
 
 aws_region    = "us-east-1"
 instance_type = "t3.medium"
 domain        = "link-shrink.org"
+
+# Compute / networking (Epic 5)
+availability_zone = "us-east-1a"             # us-east-1e has no t3.medium
+ami_id            = ""                        # "" = latest Ubuntu 24.04; set to ami-0fbcf351e82d18381 for parity
+root_volume_size  = 30
+route53_zone_id   = "Z05112061FM24VGB8BNP9"  # link-shrink.org zone (managed in Epic 6)
+
+# DNS / container registry (Epic 6)
+ecr_repositories         = ["api", "redirect", "worker", "nginx", "migrate"]
+ecr_untagged_expire_days = 14

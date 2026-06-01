@@ -58,6 +58,9 @@ COMPOSE="docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod
 $COMPOSE pull
 $COMPOSE up -d --remove-orphans
 
+# 4b. Ensure a real TLS cert (issues on a fresh box, no-op once valid).
+bash infra/cert.sh issue
+
 # 5. Wait for health; fail the deploy if anything stays unhealthy.
 deadline=$(( $(date +%s) + 180 ))
 while :; do

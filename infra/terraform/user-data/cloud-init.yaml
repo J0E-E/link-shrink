@@ -38,6 +38,33 @@ write_files:
       [Install]
       WantedBy=multi-user.target
 
+  # TLS certificate renewal. Runs the repo's cert.sh in renew mode; no-ops until
+  # the first deploy has cloned the repo to /opt/linkshrink.
+  - path: /etc/systemd/system/linkshrink-cert.service
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Renew the LinkShrink Let's Encrypt certificate
+      After=docker.service
+
+      [Service]
+      Type=oneshot
+      ExecStart=/bin/bash -c 'test -f /opt/linkshrink/infra/cert.sh && cd /opt/linkshrink && bash infra/cert.sh renew || true'
+
+  # Twice-daily renewal check (certbot only acts within 30 days of expiry).
+  - path: /etc/systemd/system/linkshrink-cert.timer
+    permissions: "0644"
+    content: |
+      [Unit]
+      Description=Run the LinkShrink cert renewal twice daily
+
+      [Timer]
+      OnCalendar=*-*-* 03,15:00:00
+      Persistent=true
+
+      [Install]
+      WantedBy=timers.target
+
 runcmd:
   - curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
   - sh /tmp/get-docker.sh
@@ -45,6 +72,7 @@ runcmd:
   - systemctl enable --now docker
   - systemctl daemon-reload
   - systemctl enable --now linkshrink-ssm-docker.path
+  - systemctl enable --now linkshrink-cert.timer
   # Sentinel the runbook can poll to know bootstrap finished.
   - mkdir -p /var/lib/linkshrink
   - touch /var/lib/linkshrink/bootstrap-complete

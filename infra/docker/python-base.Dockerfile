@@ -4,7 +4,10 @@
 #
 # Build from the repo root so `COPY packages/shared` resolves:
 #   docker build -f infra/docker/python-base.Dockerfile -t linkshrink-base .
-FROM python:3.12-slim
+#
+# Pulled from the ECR Public mirror of the Docker official image to avoid Docker
+# Hub's anonymous pull rate limit in CI (CodeBuild's shared IPs hit 429s).
+FROM public.ecr.aws/docker/library/python:3.12-slim
 
 WORKDIR /app
 

@@ -7,6 +7,9 @@
 #
 # The nginx config, conf.d, and the entrypoint script are bind-mounted by the
 # compose service (not COPYed) so edits + `nginx -s reload` work without a rebuild.
-FROM nginx:alpine
+#
+# ECR Public mirror of the Docker official image — avoids Docker Hub's anonymous
+# pull rate limit in CI.
+FROM public.ecr.aws/docker/library/nginx:alpine
 
 RUN apk add --no-cache openssl

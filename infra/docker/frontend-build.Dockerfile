@@ -11,7 +11,10 @@
 #
 # Build from the repo root so `COPY frontend` resolves:
 #   docker build -f infra/docker/frontend-build.Dockerfile -t linkshrink-frontend-build .
-FROM node:20-slim
+#
+# ECR Public mirror of the Docker official image — avoids Docker Hub's anonymous
+# pull rate limit in CI.
+FROM public.ecr.aws/docker/library/node:20-slim
 
 WORKDIR /app/frontend
 

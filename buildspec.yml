@@ -31,7 +31,8 @@ phases:
   pre_build:
     commands:
       # CODEBUILD_RESOLVED_SOURCE_VERSION is the full SHA CodePipeline checked out.
-      - export IMAGE_TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}"
+      # Use cut (not bash ${var:0:7}) — CodeBuild runs commands under /bin/sh.
+      - export IMAGE_TAG="$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c1-7)"
       - echo "Building tag $IMAGE_TAG"
       - aws ecr get-login-password --region "$AWS_REGION" | docker login --username AWS --password-stdin "$ECR_REGISTRY"
       # Backend gate (mirrors .github/workflows/tests.yml).

@@ -1,0 +1,19 @@
+# Terraform working files — never commit these.
+
+# Provider plugins and module cache.
+.terraform/
+.terraform.lock.hcl
+
+# State and backups (the real state lives in S3; the bootstrap state is local —
+# see infra/terraform/bootstrap/, which has its own .gitignore exception note).
+*.tfstate
+*.tfstate.*
+
+# Crash logs and plan output.
+crash.log
+crash.*.log
+*.tfplan
+
+# Real variable values may carry account-specific overrides; keep the example only.
+*.tfvars
+!terraform.tfvars.example

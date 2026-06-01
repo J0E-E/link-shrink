@@ -1,0 +1,7 @@
+# Sample variable values. Copy to terraform.tfvars (untracked) and adjust only if
+# you need to override a default. Every value below already matches the defaults
+# in variables.tf, so an empty/absent tfvars works just as well for Epic 4.
+
+aws_region    = "us-east-1"
+instance_type = "t3.medium"
+domain        = "link-shrink.org"

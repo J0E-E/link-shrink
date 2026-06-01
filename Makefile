@@ -10,7 +10,7 @@ COMPOSE := docker compose -f infra/docker-compose.yml
 BASE_IMAGE := linkshrink-base
 BASE_DOCKERFILE := infra/docker/python-base.Dockerfile
 
-.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean test lint
+.PHONY: base build up down logs migrate ps frontend nginx-reload certs-clean test lint loadtest
 
 # Run the full test suite (unit + Testcontainers integration). Needs Docker running for
 # the container-backed tests; without Docker those skip and the suite still passes. This
@@ -61,3 +61,16 @@ nginx-reload:
 # Drop the self-signed cert; it regenerates on the next `up`.
 certs-clean:
 	docker volume rm linkshrink_nginx-certs
+
+# Redirect cache-hit load test (Epic 20, §9.10): generate traffic, then measure the
+# server-side p95 from Nginx's $request_time. Needs the stack up (`make up`). Pass an
+# existing code to skip creation: `make loadtest CODE=abc123`. See infra/loadtest/README.md.
+REQUESTS ?= 2000
+CONCURRENCY ?= 50
+loadtest:
+ifndef CODE
+	$(error CODE is required for the one-step target: `make loadtest CODE=<existing code>`. To create a fresh link instead, run `python infra/loadtest/run_load_test.py` directly, then parse with the printed code. See infra/loadtest/README.md.)
+endif
+	python infra/loadtest/run_load_test.py --requests $(REQUESTS) --concurrency $(CONCURRENCY) --code $(CODE)
+	@echo "Measuring server-side p95 at Nginx for /$(CODE)..."
+	$(COMPOSE) exec -T nginx cat /var/log/nginx/access.log | python infra/loadtest/parse_nginx_p95.py --code $(CODE)

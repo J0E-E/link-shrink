@@ -22,9 +22,15 @@ export default function SiteHeader() {
     <header className={styles.header} id="site-header">
       <div className={styles.headerInner} id="site-header-inner">
         <Link to="/" className={styles.brand} id="site-brand" onClick={closeMobileNav}>
-          <span className={styles.brandMark} id="site-brand-mark" aria-hidden="true">
-            ↳
-          </span>
+          <img
+            className={styles.brandMark}
+            id="site-brand-mark"
+            src="/images/linkshrink.png"
+            alt=""
+            aria-hidden="true"
+            width={48}
+            height={32}
+          />
           <span className={styles.brandText} id="site-brand-text">
             LinkShrink
           </span>

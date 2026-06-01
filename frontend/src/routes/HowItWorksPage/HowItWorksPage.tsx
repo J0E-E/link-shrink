@@ -19,8 +19,9 @@ export default function HowItWorksPage() {
         </h1>
         <p className={styles.subtitle} id="how-it-works-subtitle">
           A peek under the hood at the services, the request flows, and the choices behind them.
-          Keep an eye out for the System Design Notes scattered throughout for the reasoning behind
-          each piece.
+          LinkShrink is built as a scalable MVP — running on a single VM today, with a clear path to
+          managed infrastructure as it grows. Keep an eye out for the System Design Notes scattered
+          throughout for the reasoning behind each piece.
         </p>
       </header>
 

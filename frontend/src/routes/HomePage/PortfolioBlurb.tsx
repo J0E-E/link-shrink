@@ -22,8 +22,10 @@ export default function PortfolioBlurb() {
       </h2>
       <p className={styles.body} id="home-portfolio-blurb-body">
         LinkShrink is a working demo of how I design and ship software with an AI-assisted
-        workflow. Every feature started as a written spec, went through a multi-agent review, and
-        landed one epic per commit — the app you&apos;re using is the receipt.
+        workflow. It&apos;s built as a scalable MVP — running on a single VM today, with a clear path
+        to managed infrastructure later. Every feature started as a written spec, went through a
+        multi-agent review, and landed one epic per commit — the app you&apos;re using is the
+        receipt.
       </p>
       <div className={styles.actions} id="home-portfolio-blurb-actions">
         <Link

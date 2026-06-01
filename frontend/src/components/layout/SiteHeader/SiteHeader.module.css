@@ -35,9 +35,9 @@
 }
 
 .brandMark {
-  color: var(--color-accent);
-  font-size: 1.5rem;
-  line-height: 1;
+  height: 2rem;
+  width: auto;
+  display: block;
 }
 
 .brandText {

@@ -56,6 +56,22 @@ aws ecr get-login-password --region "$AWS_REGION" \
 # 4. Pull the tagged images and (re)start the stack via the prod overlay.
 COMPOSE="docker compose -f infra/docker-compose.yml -f infra/docker-compose.prod.yml"
 $COMPOSE pull
+
+# 4a. Reset data on every deploy: wipe Postgres + Redis so the stack always comes
+# up with a freshly-migrated, empty database and an empty cache. We take the stack
+# down to release the volumes, then remove ONLY the two data volumes — nginx-certs
+# and frontend-dist are deliberately kept (we never want to re-issue the Let's
+# Encrypt cert on a deploy and risk its rate limit). The migrate one-shot recreates
+# the schema on the way back up. Set RESET_DATA=false to deploy without wiping.
+RESET_DATA="${RESET_DATA:-true}"
+if [ "$RESET_DATA" = "true" ]; then
+  echo "RESET_DATA=true — wiping Postgres + Redis for a clean slate"
+  $COMPOSE down --remove-orphans
+  # Volume names are project-prefixed (compose `name: linkshrink`). -f is a no-op
+  # if they don't exist yet (e.g. first deploy on a fresh box).
+  docker volume rm -f linkshrink_postgres-data linkshrink_redis-data
+fi
+
 $COMPOSE up -d --remove-orphans
 
 # 4b. Ensure a real TLS cert (issues on a fresh box, no-op once valid).

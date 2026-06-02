@@ -227,7 +227,9 @@ async def test_unknown_code_returns_404_and_negative_caches(
     assert response.status_code == 404
     assert is_negative(await get_cached(redis_client, "missing"))
     assert 0 < await redis_client.ttl(redirect_key("missing")) <= NEGATIVE_CACHE_TTL_SECONDS
-    assert await read_counter(redis_client, METRICS_CACHE_MISS_KEY) == 1
+    # An unknown code is a 404 (junk), not a missed lookup for a real link, so it is NOT
+    # counted as a cache miss — the hit/miss ratio tracks real links only.
+    assert await read_counter(redis_client, METRICS_CACHE_MISS_KEY) == 0
     assert await read_counter(redis_client, METRICS_REDIRECTS_TOTAL_KEY) == 0
 
 
@@ -241,7 +243,9 @@ async def test_negative_cache_hit_returns_404_without_db(
         warm = await warm_client.get("/missing")
 
     assert warm.status_code == 404
-    assert await read_counter(redis_client, METRICS_CACHE_HIT_KEY) == 1
+    # A negative-cache hit serves the 404 from cache (never touching the DB) but is NOT
+    # counted as a cache hit — junk/unknown codes stay out of the hit/miss ratio entirely.
+    assert await read_counter(redis_client, METRICS_CACHE_HIT_KEY) == 0
 
 
 async def test_analytics_failure_still_returns_302(
